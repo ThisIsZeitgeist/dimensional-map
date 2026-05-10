@@ -45,11 +45,12 @@
     text-decoration: none;
     transition: background-color 120ms, border-color 120ms, color 120ms;
   }
-  header a.skill-tag:hover {
+  header a.skill-tag[href]:hover {
     background-color: rgba(121,184,255,0.10);
     border-color: rgba(121,184,255,0.55);
     color: var(--ink);
   }
+  header a.skill-tag:not([href]) { cursor: default; }
   header h1 {
     font-size: 30px; margin: 0 0 8px; letter-spacing: -0.005em;
     font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -364,7 +365,7 @@
 </div>
 
 <header>
-  <a class="skill-tag" id="eyebrow" href="/" title="Demo overview"></a>
+  <a class="skill-tag" id="eyebrow"></a>
   <h1 id="h1"></h1>
   <p class="sub" id="header-sub"></p>
   <p class="crossref" id="crossref"></p>
@@ -409,6 +410,8 @@ const DATA = {
   meta: {
     title: "/dimensional-map — fast structural orientation in unfamiliar topics",
     eyebrow: "Claude Code skill — demo",
+    eyebrowHref: "/",
+    eyebrowTitle: "Demo overview",
     h1: "/dimensional-map",
     headerSub: "A skill that helps you grasp the <em>structure</em> of an unfamiliar domain — by surfacing its informative axes, the distribution of approaches along each, and the bundles of co-occurring traits that define each pole. Worked example: <b>coffee brewing</b>.",
     crossref: "For the <em>dynamics</em> of the same domain — how inputs map to outcomes — see the companion skill <a href='playground'>/parameter-playground</a>.",
@@ -593,6 +596,7 @@ const DATA = {
     meta: {
       title: "/dimensional-map — schnelle Strukturorientierung in fremden Themengebieten",
       eyebrow: "Claude Code Skill — Demo",
+      eyebrowTitle: "Demo-Übersicht",
       h1: "/dimensional-map",
       headerSub: "Ein Skill, der hilft, die <em>Struktur</em> eines fremden Themengebiets zu erfassen — durch Sichtbarmachen der informativen Achsen, der Verteilung der Ansätze entlang jeder Achse und der Bündel zusammen auftretender Eigenschaften, die jeden Pol definieren. Anwendungsbeispiel: <b>Kaffeezubereitung</b>.",
       crossref: "Für die <em>Dynamik</em> desselben Themengebiets — wie Inputs auf Outcomes abgebildet werden — siehe das Companion-Skill <a href='playground'>/parameter-playground</a>.",
@@ -819,7 +823,17 @@ DATA.models.forEach(m => { if (m.isTarget) visible.add(m.key); });
 function renderHeaderAndMeta() {
   document.getElementById("page-title").textContent = ACTIVE.meta.title;
   document.documentElement.lang = currentLang;
-  if (ACTIVE.meta.eyebrow) document.getElementById("eyebrow").innerHTML = "← " + ACTIVE.meta.eyebrow;
+  if (ACTIVE.meta.eyebrow) {
+    const eb = document.getElementById("eyebrow");
+    eb.innerHTML = "← " + ACTIVE.meta.eyebrow;
+    if (ACTIVE.meta.eyebrowHref) {
+      eb.setAttribute("href", ACTIVE.meta.eyebrowHref);
+      if (ACTIVE.meta.eyebrowTitle) eb.setAttribute("title", ACTIVE.meta.eyebrowTitle);
+    } else {
+      eb.removeAttribute("href");
+      eb.removeAttribute("title");
+    }
+  }
   document.getElementById("h1").textContent = ACTIVE.meta.h1;
   document.getElementById("header-sub").innerHTML = ACTIVE.meta.headerSub;
   if (ACTIVE.meta.crossref) document.getElementById("crossref").innerHTML = ACTIVE.meta.crossref;
