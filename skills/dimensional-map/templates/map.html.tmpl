@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<!--
+  dimensional-map renderer — self-contained, no build step.
+  Schema lives in `const DATA = { ... }` block below the marker.
+  All visible strings live under DATA.meta / DATA.axes / DATA.models / DATA.covariations.
+  Optional bilingual mode: provide `DATA.de = { meta, models, axes, covariations }`
+  with the same shape as the top level (or partial overrides). The renderer
+  picks `de` when navigator language is German or the user clicks the DE pill.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title id="page-title">Dimensional map</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #161a22;
+    --panel-2: #1d222c;
+    --ink: #e8ecf1;
+    --ink-mute: #9aa3b2;
+    --ink-dim: #6b7484;
+    --accent: #79b8ff;
+    --accent-2: #ffb86b;
+    --accent-3: #b392f0;
+    --accent-4: #85e89d;
+    --warn: #f97583;
+    --rule: #2a3140;
+    --rule-2: #1f2530;
+    --target: #f97583;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg); color: var(--ink); margin: 0; }
+  body {
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+    max-width: 1180px; margin: 0 auto; padding: 40px 28px 96px;
+  }
+  header { margin-bottom: 10px; }
+  header .skill-tag {
+    display: inline-block;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.10em;
+    color: var(--accent); border: 1px solid rgba(121,184,255,0.3);
+    padding: 3px 10px; border-radius: 999px;
+    margin-bottom: 12px; font-weight: 600;
+  }
+  header h1 {
+    font-size: 30px; margin: 0 0 8px; letter-spacing: -0.005em;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-weight: 600;
+  }
+  header .sub { color: var(--ink-mute); font-size: 15px; max-width: 820px; line-height: 1.55; }
+  header .sub b { color: var(--ink); font-weight: 600; }
+  header .sub em { color: var(--ink); font-style: normal; font-weight: 600; }
+  header .crossref {
+    margin: 10px 0 0; font-size: 13px; color: var(--ink-dim);
+    padding: 8px 12px; background: var(--panel-2);
+    border: 1px solid var(--rule-2); border-left: 3px solid var(--accent-2);
+    border-radius: 0 6px 6px 0;
+    max-width: 820px;
+  }
+  header .crossref a {
+    color: var(--accent-2); text-decoration: none; font-weight: 600;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  header .crossref a:hover { text-decoration: underline; }
+  header .crossref em { color: var(--ink); font-style: normal; }
+
+  /* Language toggle — fixed top-right */
+  .lang-toggle {
+    position: fixed; top: 14px; right: 14px; z-index: 100;
+    background: rgba(22,26,34,0.85);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    padding: 3px;
+    display: flex; gap: 1px;
+    font-size: 12px; letter-spacing: 0.06em; font-weight: 600;
+  }
+  .lang-pill {
+    padding: 4px 11px; border-radius: 999px;
+    color: var(--ink-mute); cursor: pointer; user-select: none;
+    transition: background 120ms, color 120ms;
+  }
+  .lang-pill:hover { color: var(--ink); }
+  .lang-pill.active { background: var(--panel-2); color: var(--ink); }
+
+  /* Top-of-page summary (bullets, not prose) */
+  .meta {
+    background: var(--panel); border: 1px solid var(--rule);
+    border-radius: 12px;
+    padding: 22px 26px 24px; margin: 18px 0 28px;
+  }
+  .meta strong { color: var(--ink); } .meta b { color: var(--ink); font-weight: 600; }
+  .meta em { color: var(--ink); font-style: normal; }
+  .meta .meta-h {
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.09em;
+    color: var(--ink-dim); margin: 0 0 14px; font-weight: 700;
+  }
+  .meta ul.bullet-list {
+    margin: 0; padding: 0; list-style: none;
+    display: flex; flex-direction: column; gap: 9px;
+  }
+  .meta ul.bullet-list li {
+    color: var(--ink-mute); font-size: 14px; line-height: 1.55;
+    padding-left: 22px; position: relative;
+  }
+  .meta ul.bullet-list li::before {
+    content: ""; position: absolute;
+    left: 4px; top: 9px; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent);
+  }
+  .meta ul.bullet-list li:nth-child(2)::before { background: var(--accent-3); }
+  .meta ul.bullet-list li:nth-child(3)::before { background: var(--accent-2); }
+  .meta ul.bullet-list li:nth-child(4)::before { background: var(--accent-4); }
+  .meta ul.bullet-list li:nth-child(5)::before { background: var(--warn); }
+  .meta .meta-why {
+    margin: 14px 0 0; padding-top: 14px;
+    border-top: 1px solid var(--rule-2);
+    color: var(--ink-mute); font-size: 13px; line-height: 1.6;
+  }
+  .meta .meta-why code {
+    background: rgba(255,255,255,0.04); border: 1px solid var(--rule-2);
+    border-radius: 4px; padding: 1px 5px; font-size: 12px; color: var(--accent-2);
+  }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 8px 6px;
+    align-items: center; margin: 16px 0 6px;
+  }
+  .legend .lbl {
+    font-size: 12px; color: var(--ink-dim); margin-right: 8px;
+    text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 999px;
+    border: 1px solid var(--rule); background: var(--panel);
+    color: var(--ink-mute); font-size: 12px;
+    cursor: pointer; user-select: none;
+    transition: background 120ms, color 120ms, border-color 120ms;
+  }
+  .pill:hover { color: var(--ink); border-color: var(--rule-2); }
+  .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-mute); box-shadow: 0 0 0 2px var(--panel); }
+  .pill.on { background: var(--panel-2); color: var(--ink); border-color: var(--ink-dim); }
+  .pill.target { color: var(--target); border-color: rgba(249,117,131,0.35); }
+  .pill.target .dot { background: var(--target); }
+
+  /* Radar */
+  .radar-section {
+    background: var(--panel); border: 1px solid var(--rule); border-radius: 10px;
+    padding: 18px 22px; margin: 22px 0 6px;
+    display: flex; gap: 28px; align-items: center;
+  }
+  .radar-section .radar-svg-wrap { flex: 0 0 auto; width: 380px; height: 360px; }
+  .radar-section .radar-svg-wrap svg { width: 100%; height: 100%; display: block; }
+  .radar-section .radar-blurb { flex: 1; min-width: 0; }
+  .radar-section h2 { margin: 0 0 6px; font-size: 17px; letter-spacing: -0.005em; }
+  .radar-section h2 .kind { font-size: 11px; font-weight: 500; color: var(--ink-dim); margin-left: 8px; text-transform: uppercase; letter-spacing: 0.07em; }
+  .radar-section p { font-size: 13px; color: var(--ink-mute); margin: 0 0 10px; line-height: 1.55; }
+  .radar-section p b { color: var(--ink); font-weight: 600; }
+  .radar-section ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; color: var(--ink-mute); }
+  .radar-section ul li { margin: 3px 0; } .radar-section ul li b { color: var(--ink); font-weight: 600; }
+
+  .radar-grid { fill: none; stroke: var(--rule); stroke-width: 1; }
+  .radar-axis-line { stroke: var(--rule); stroke-width: 1; opacity: 0.65; }
+  .radar-axis-label { fill: var(--ink-dim); font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; }
+  .radar-tick-label { fill: var(--ink-dim); font-size: 9px; opacity: 0.55; }
+  .radar-poly { fill-opacity: 0.12; stroke-width: 1.5; transition: fill-opacity 120ms; cursor: default; }
+  .radar-poly:hover { fill-opacity: 0.32; }
+  .radar-poly.target { fill-opacity: 0.20; stroke-width: 2; }
+  .radar-poly.target:hover { fill-opacity: 0.38; }
+  .radar-poly[data-hidden="1"] { display: none; }
+
+  @media (max-width: 880px) {
+    .radar-section { flex-direction: column; align-items: stretch; gap: 14px; }
+    .radar-section .radar-svg-wrap { width: 100%; max-width: 380px; height: auto; aspect-ratio: 380 / 360; margin: 0 auto; }
+  }
+
+  /* Per-axis scales */
+  .scales { display: flex; flex-direction: column; gap: 10px; margin-top: 22px; }
+  .axis {
+    background: var(--panel); border: 1px solid var(--rule); border-radius: 10px;
+    padding: 16px 20px 22px;
+  }
+  .axis-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
+  .axis-name { font-size: 15px; font-weight: 600; color: var(--ink); letter-spacing: -0.005em; }
+  .axis-name .kind { font-size: 11px; font-weight: 500; color: var(--ink-dim); margin-left: 8px; text-transform: uppercase; letter-spacing: 0.07em; }
+  .axis-blurb { color: var(--ink-mute); font-size: 13px; max-width: 820px; margin: 0 0 12px; }
+  .axis-blurb em { color: var(--ink); font-style: normal; }
+
+  .scale-wrap { position: relative; height: 110px; margin: 0 6px; }
+  .scale-bar { position: absolute; left: 0; right: 0; top: 46px; height: 6px; border-radius: 3px;
+    background: linear-gradient(to right, rgba(121,184,255,0.12), rgba(255,184,107,0.12));
+    border: 1px solid var(--rule); }
+  .density { position: absolute; left: 0; right: 0; top: 30px; height: 34px; border-radius: 6px; pointer-events: none; opacity: 0.45; filter: blur(0.5px); }
+  .endpoints { position: absolute; left: 0; right: 0; top: 92px; display: flex; justify-content: space-between;
+    font-size: 11px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.07em; pointer-events: none; }
+  .endpoints span:first-child { color: var(--accent); }
+  .endpoints span:last-child  { color: var(--accent-2); }
+
+  .marker {
+    position: absolute; top: 41px; transform: translateX(-50%);
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--ink-mute); border: 2px solid var(--bg);
+    box-shadow: 0 0 0 1px var(--rule); cursor: default;
+    transition: transform 120ms, opacity 120ms;
+  }
+  .marker.target { width: 18px; height: 18px; top: 39px; background: var(--target);
+    box-shadow: 0 0 0 1px rgba(249,117,131,0.4), 0 0 14px rgba(249,117,131,0.35); z-index: 5; }
+  .marker[data-hidden="1"] { display: none; }
+  .marker .label { position: absolute; left: 50%; transform: translateX(-50%);
+    white-space: nowrap; font-size: 11px; color: var(--ink-mute); pointer-events: none; }
+  .marker.target .label { color: var(--target); font-weight: 600; }
+  .marker.lbl-above .label { bottom: 24px; }
+  .marker.lbl-below .label { top: 24px; }
+  .marker .label .conf { font-size: 9px; color: var(--ink-dim); margin-left: 2px; opacity: 0.65; }
+
+  /* Endpoint dossier */
+  .dossier {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+    margin: 8px 0 10px; padding: 12px 14px;
+    background: var(--panel-2); border: 1px solid var(--rule-2); border-radius: 8px;
+  }
+  .dossier-pole { font-size: 12.5px; line-height: 1.55; }
+  .dossier-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+  .dossier-label { font-weight: 600; font-size: 13px; }
+  .dossier-pole.left  .dossier-label { color: var(--accent); }
+  .dossier-pole.right .dossier-label { color: var(--accent-2); }
+  .dossier-exemplar { font-size: 11px; color: var(--ink-dim); font-style: italic; white-space: nowrap; }
+  .dossier-exemplar b { color: var(--ink-mute); font-style: normal; font-weight: 600; }
+  .dossier-bundle {
+    display: flex; flex-wrap: wrap; gap: 4px 6px;
+    margin: 4px 0 6px; padding: 0; list-style: none;
+  }
+  .dossier-bundle li {
+    background: rgba(255,255,255,0.025); border: 1px solid var(--rule-2); border-radius: 4px;
+    padding: 2px 7px; font-size: 11px; color: var(--ink-mute);
+  }
+  .dossier-pole.left .dossier-bundle li  { border-color: rgba(121,184,255,0.18); }
+  .dossier-pole.right .dossier-bundle li { border-color: rgba(255,184,107,0.18); }
+  .dossier-why { font-size: 11.5px; color: var(--ink-mute); }
+  .dossier-why b { color: var(--ink-dim); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; margin-right: 4px; }
+
+  @media (max-width: 700px) {
+    .dossier { grid-template-columns: 1fr; }
+  }
+
+  .axis-foot { margin-top: 10px; color: var(--ink-dim); font-size: 12px; line-height: 1.5; }
+  .axis-foot b { color: var(--ink-mute); font-weight: 600; }
+
+  /* Co-variation panel */
+  .covar { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 18px 22px; margin-top: 28px; }
+  .covar h2 { font-size: 17px; margin: 0 0 6px; letter-spacing: -0.005em; }
+  .covar p.intro { font-size: 13px; color: var(--ink-mute); margin: 0 0 14px; max-width: 820px; }
+  .covar p.intro b { color: var(--ink); font-weight: 600; }
+  .covar-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px 18px; }
+  .covar-card { background: var(--panel-2); border: 1px solid var(--rule-2); border-radius: 8px; padding: 12px 14px; font-size: 13px; }
+  .covar-card .pair { color: var(--accent); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .covar-card .pair em { color: var(--ink-dim); font-style: normal; margin: 0 4px; }
+  .covar-card .pair .strength { font-size: 10px; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--rule-2); color: var(--ink-dim); letter-spacing: 0.04em; }
+  .covar-card .pair .strength.tight, .covar-card .pair .strength.eng   { color: var(--target); border-color: rgba(249,117,131,0.35); }
+  .covar-card .pair .strength.loose, .covar-card .pair .strength.locker { color: var(--accent-4); border-color: rgba(133,232,157,0.35); }
+  .covar-card .mech { color: var(--ink-mute); margin: 0 0 6px; line-height: 1.5; }
+  .covar-card .mech b { color: var(--ink); font-weight: 600; }
+  .covar-card .ex { color: var(--ink-dim); font-size: 12px; font-style: italic; }
+  .covar-card .ex b { color: var(--ink-mute); font-style: normal; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; font-size: 10px; margin-right: 4px; }
+
+  .footer-note { margin-top: 30px; color: var(--ink-dim); font-size: 12px; line-height: 1.6; border-top: 1px solid var(--rule-2); padding-top: 16px; }
+  .footer-note b { color: var(--ink-mute); }
+
+  @media (max-width: 760px) {
+    body { padding: 60px 14px 60px; }
+    .marker .label { font-size: 10px; }
+    .axis { padding: 14px 14px 22px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="lang-toggle" role="navigation" aria-label="Language">
+  <span class="lang-pill" data-lang="en">EN</span>
+  <span class="lang-pill" data-lang="de">DE</span>
+</div>
+
+<header>
+  <span class="skill-tag" id="eyebrow"></span>
+  <h1 id="h1"></h1>
+  <p class="sub" id="header-sub"></p>
+  <p class="crossref" id="crossref"></p>
+</header>
+<div class="meta" id="meta-callout"></div>
+<div class="legend" id="legend"></div>
+
+<section class="radar-section">
+  <div class="radar-svg-wrap">
+    <svg id="radar-svg" viewBox="0 0 380 360" role="img" aria-label="Radar chart"></svg>
+  </div>
+  <div class="radar-blurb">
+    <h2 id="radar-h"></h2>
+    <p id="radar-p1"></p>
+    <p><b id="radar-look-h"></b></p>
+    <ul id="radar-look-list"></ul>
+  </div>
+</section>
+
+<div class="scales" id="scales"></div>
+<div class="covar" id="covar"></div>
+<div class="footer-note" id="footer-note"></div>
+
+<script>
+"use strict";
+
+// =============================================================================
+// === DATA — edit this block when reusing the template for a new map.        ===
+// === Top-level fields are the canonical (default) language. Add `de: { ... }` ===
+// === with the same shape (full or partial) for a German variant; the toggle  ===
+// === picks it. See the dimensional-map skill for schema details.             ===
+// =============================================================================
+
+const DATA = {
+  meta: {
+    title: "/dimensional-map — fast structural orientation in unfamiliar topics",
+    eyebrow: "Claude Code skill — demo",
+    h1: "/dimensional-map",
+    headerSub: "A skill that helps you grasp the <em>structure</em> of an unfamiliar domain — by surfacing its informative axes, the distribution of approaches along each, and the bundles of co-occurring traits that define each pole. Worked example: <b>coffee brewing</b>.",
+    crossref: "For the <em>dynamics</em> of the same domain — how inputs map to outcomes — see the companion skill <a href='playground'>/parameter-playground</a>.",
+    metaCallout: "<div class='meta-h'>What you're looking at</div><ul class='bullet-list'><li><b>6 axes</b> that shape a coffee brewing method: pressure, time, grind, filtration, cost, ritual.</li><li><b>5 methods</b> on each axis (espresso, AeroPress, V60, French press, cold brew). <b>Espresso</b> is highlighted as the target — toggle the others to compare.</li><li><b>Endpoint dossier</b> under every scale unpacks each pole as a <em>bundle</em> of co-occurring traits, not a single value (espresso ≠ just '9 bar' — it bundles fine grind + short time + expensive machine + ritual).</li><li><b>Radar overlay</b> below shows each method's silhouette across all axes at once; spikes and dents flag signature moves.</li><li><b>Co-variation panel</b> at the bottom catalogues which axes <em>force</em> each other to move together — with mechanism, not just correlation.</li></ul><div class='meta-why'><b>Worked example</b> for the <code>/dimensional-map</code> Claude Code skill. Framework is domain-general — clone the file, replace the <code>DATA</code> block, map any domain.</div>",
+    legendLabel: "Compare against:",
+    radarH: "Shape comparison",
+    radarKind: "all axes at once",
+    radarP1: "Each polygon is one method's silhouette across all axes. Centre = left pole. Rim = right pole. Toggle pills above to add/remove polygons.",
+    radarLookH: "What to look for:",
+    radarLook: [
+      "<b>Overall radius</b> — rough proxy for design-heaviness.",
+      "<b>Dents</b> — axes where this instance is conservative or absent.",
+      "<b>Spikes</b> — single vertices reaching the rim flag the instance's signature move.",
+      "<b>Overlap</b> — between polygons ≈ how interchangeable two paradigms are. The non-overlap is where the real design choice lives.",
+    ],
+    covarH: "How variables move together",
+    covarIntro: "Axes aren't independent. Picking a value on one usually narrows the plausible range on others — design constraints, economics, and engineering coupling all force correlations. Each card states the <b>mechanism</b>, not just the correlation. Strength: <b>tight</b> = forced (can't decouple cheaply); <b>loose</b> = conventional (an exception is plausible).",
+    exampleLabel: "Example:",
+    whyBundledLabel: "Why bundled:",
+    targetLabel: "Target:",
+    exemplarLabel: "e.g.",
+    footer: "<b>Caveats.</b> Positions are coarse — coffee brewing has many sub-variants ('pour-over' covers V60, Chemex, Kalita Wave, all subtly different). Distribution shading is illustrative, not measured. Confidence marks: <code>*</code> well-established, <code>~</code> estimated, <code>?</code> guess. Endpoint bundles describe what tends to <em>cluster</em> at each pole, not iron laws — exceptions exist (e.g., AeroPress pressurises lightly without demanding fine grind), and those exceptions are usually worth understanding rather than treated as map flaws.",
+  },
+
+  models: [
+    { key: "espresso",    name: "Espresso",     full: "Espresso (9-bar machine)",   color: "#f97583", isTarget: true },
+    { key: "aeropress",   name: "AeroPress",    full: "AeroPress",                  color: "#85e89d" },
+    { key: "v60",         name: "V60",          full: "V60 pour-over",              color: "#79b8ff" },
+    { key: "frenchpress", name: "French press", full: "French press / cafetière",   color: "#ffb86b" },
+    { key: "coldbrew",    name: "Cold brew",    full: "Cold brew (immersion)",      color: "#b392f0" },
+  ],
+
+  axes: [
+    {
+      id: "pressure", name: "Brewing pressure", short: "Pressure", kind: "Mechanism",
+      blurb: "What drives water through the grounds — gravity, immersion, or pump pressure. The most consequential single variable in the field; almost everything else clusters around the answer.",
+      leftPole: {
+        label: "Atmospheric (gravity / immersion)",
+        bundle: ["gravity or immersion drives extraction", "coarse-to-medium grind", "forgiving to user technique", "simple equipment", "long contact tolerated"],
+        exemplar: "French press",
+        why: "Without pressure, only diffusion drives extraction, so time substitutes for force; coarse grind avoids over-extracting at long times; cheap mechanism rounds out the bundle."
+      },
+      rightPole: {
+        label: "9 bar (espresso pressure)",
+        bundle: ["very fine grind required", "~30s extraction window", "expensive pump-driven machine", "precise dosing critical", "concentrated 1:2 yield"],
+        exemplar: "Espresso",
+        why: "Design coupling — high pressure forces fine grind to slow flow; fine grind demands precise dose and temperature; the whole stack is needed to brew espresso at all."
+      },
+      densityPeaks: [{at: 0.05, w: 0.18, h: 0.95}, {at: 0.95, w: 0.10, h: 0.55}],
+      pos: { espresso: 1.0, aeropress: 0.4, v60: 0.0, frenchpress: 0.0, coldbrew: 0.0 },
+      confidence: { espresso: "*", aeropress: "*", v60: "*", frenchpress: "*", coldbrew: "*" },
+      foot: "Espresso defines the right pole — 9 bar is what makes it espresso, and what justifies and forces the rest of the bundle (fine grind, fast extraction, expensive machine)."
+    },
+    {
+      id: "time", name: "Extraction time", short: "Time", kind: "Kinetics",
+      blurb: "How long water and grounds are in contact. Spans four orders of magnitude across the field — from ~30 seconds to ~24 hours.",
+      leftPole: {
+        label: "Seconds (~30s)",
+        bundle: ["aggressive extraction lever (pressure or fineness)", "concentrated yield", "narrow under/over-extraction window", "technique-sensitive", "high crema and oils"],
+        exemplar: "Espresso",
+        why: "Short time forces a high extraction rate, achievable only via pressure or extreme fineness; the rate is fast so the window is narrow and there's no time to correct."
+      },
+      rightPole: {
+        label: "Many hours (12-24h)",
+        bundle: ["ambient/cold water", "coarse grind", "low caffeine extraction efficiency", "low acidity", "sweet/smooth profile"],
+        exemplar: "Cold brew",
+        why: "Long time at low temperature inverts the usual extraction curve — solubility-driven rather than temperature-driven, so different compounds dominate the cup."
+      },
+      densityPeaks: [{at: 0.1, w: 0.15, h: 0.85}, {at: 0.95, w: 0.07, h: 0.5}],
+      pos: { espresso: 0.05, aeropress: 0.1, v60: 0.18, frenchpress: 0.25, coldbrew: 1.0 },
+      confidence: { espresso: "*", aeropress: "*", v60: "*", frenchpress: "*", coldbrew: "*" },
+      foot: "Espresso is at the extreme left — ~30 seconds is roughly the entire window between under- and over-extracted. The narrow window is why espresso is technique-sensitive."
+    },
+    {
+      id: "grind", name: "Grind size", short: "Grind", kind: "Geometry",
+      blurb: "How fine the coffee is ground. Geometry determines surface area and bed permeability — and therefore both extraction rate and the brew method's flow physics.",
+      leftPole: {
+        label: "Very fine (talcum)",
+        bundle: ["high-pressure brew", "short contact time", "expensive flat-burr grinder", "channeling risk", "no espresso without it"],
+        exemplar: "Espresso",
+        why: "Fine grind = high surface area per volume, only suits short brews under pressure; cheap grinders can't produce uniform talcum without unwanted fines that block flow."
+      },
+      rightPole: {
+        label: "Very coarse (sea salt)",
+        bundle: ["long immersion time", "cheap grinder works", "metal mesh filtration sufficient", "sediment in cup", "simple ritual"],
+        exemplar: "French press",
+        why: "Coarse particles tolerate long contact without over-extracting; large particles strain easily through metal mesh, and cheap grinders are uniform enough at coarse settings."
+      },
+      densityPeaks: [{at: 0.1, w: 0.13, h: 0.7}, {at: 0.55, w: 0.2, h: 0.85}, {at: 0.92, w: 0.1, h: 0.6}],
+      pos: { espresso: 0.05, aeropress: 0.4, v60: 0.55, frenchpress: 0.95, coldbrew: 0.85 },
+      confidence: { espresso: "*", aeropress: "*", v60: "*", frenchpress: "*", coldbrew: "*" },
+      foot: "Espresso requires the finest grind in the field, near talcum. This is downstream of the 9-bar pressure (covariation #1) — without fine grind, water rushes through too fast for any extraction to happen."
+    },
+    {
+      id: "filtration", name: "Filtration", short: "Filtration", kind: "Cup composition",
+      blurb: "What the brew passes through on its way to the cup. Determines what's in the cup beyond water and dissolved solids: oils, fines, sediment.",
+      leftPole: {
+        label: "Immersion / metal mesh",
+        bundle: ["oils and fines pass through", "heavier mouthfeel", "sediment in cup", "simpler hardware", "no single-use waste"],
+        exemplar: "French press",
+        why: "Lower filtration = more dissolved solids and oils in cup, so the cup is physically heavier — a bundle of mouthfeel + visual + hardware simplicity."
+      },
+      rightPole: {
+        label: "Paper-filtered",
+        bundle: ["cleaner cup", "oils held back", "brighter acidity perception", "single-use paper waste", "enables long gravity contact"],
+        exemplar: "V60 pour-over",
+        why: "Paper removes lipids and fine particulate, which changes flavour balance perception and enables slow gravity brews that would over-extract through metal mesh."
+      },
+      densityPeaks: [{at: 0.15, w: 0.2, h: 0.7}, {at: 0.9, w: 0.12, h: 0.7}],
+      pos: { espresso: 0.4, aeropress: 0.85, v60: 1.0, frenchpress: 0.05, coldbrew: 0.2 },
+      confidence: { espresso: "*", aeropress: "*", v60: "*", frenchpress: "*", coldbrew: "~" },
+      foot: "Espresso is mid-range — no paper filter, but the puck self-filters at the basket. That's why espresso is heavy-bodied without French-press-style sediment in the cup."
+    },
+    {
+      id: "cost", name: "Equipment cost", short: "Cost", kind: "Capital",
+      blurb: "Initial investment to brew the method properly. Spans nearly two orders of magnitude — from $20 to $3000+. The cheap end and expensive end have very different cultures.",
+      leftPole: {
+        label: "Cheap ($10-50)",
+        bundle: ["hand grinder fine", "zero electricity", "portable / travel-friendly", "no calibration", "forgiving recipes"],
+        exemplar: "French press",
+        why: "Low cost forces simple mechanisms, which forgive user error and travel well; no precision instrument means no calibration needed."
+      },
+      rightPole: {
+        label: "Expensive ($1000+)",
+        bundle: ["precision flat/conical grinder", "pump-driven 9-bar machine", "PID temperature control", "steam wand", "daily maintenance ritual"],
+        exemplar: "Prosumer espresso setup",
+        why: "Espresso style demands grinder + pressure + temperature simultaneously; each component is a precision instrument, and they couple together as a stack."
+      },
+      densityPeaks: [{at: 0.1, w: 0.15, h: 0.85}, {at: 0.85, w: 0.13, h: 0.5}],
+      pos: { espresso: 0.95, aeropress: 0.15, v60: 0.1, frenchpress: 0.05, coldbrew: 0.05 },
+      confidence: { espresso: "*", aeropress: "*", v60: "*", frenchpress: "*", coldbrew: "*" },
+      foot: "Espresso's defining capital cost: a prosumer setup is $1000-3000+ before you've made a single shot. The grinder is often the more expensive component."
+    },
+    {
+      id: "ritual", name: "Ritual complexity", short: "Ritual", kind: "User effort",
+      blurb: "How much active control the user must exert during brewing — from walk-away passive to full barista craft. Spans the whole 'is this a chore or a hobby?' spectrum.",
+      leftPole: {
+        label: "Set-and-forget",
+        bundle: ["minimal user action", "no timing windows", "forgiving of variation", "scales easily to many cups", "reproducible by anyone"],
+        exemplar: "Cold brew",
+        why: "Long, uncritical time window means user can pour and walk away; nothing depends on user execution skill, so the result is consistent across people."
+      },
+      rightPole: {
+        label: "Multi-step craft",
+        bundle: ["timed bloom and pours", "grind-on-demand", "per-cup tuning", "enthusiast skill development", "narrow execution windows"],
+        exemplar: "V60 pour-over / espresso pulling",
+        why: "Short brews and high-extraction techniques force the user to control multiple variables in narrow windows; mastery is a real skill that varies between practitioners."
+      },
+      densityPeaks: [{at: 0.15, w: 0.18, h: 0.7}, {at: 0.85, w: 0.15, h: 0.7}],
+      pos: { espresso: 0.95, aeropress: 0.6, v60: 0.85, frenchpress: 0.2, coldbrew: 0.05 },
+      confidence: { espresso: "*", aeropress: "*", v60: "*", frenchpress: "*", coldbrew: "*" },
+      foot: "Espresso pulling has many steps in narrow windows: dose, distribute, tamp, lock-in, pull, monitor pressure profile, stop at the right yield. Mastery takes months and varies barista-to-barista."
+    },
+  ],
+
+  covariations: [
+    { a: "Pressure", b: "Grind size",
+      mechanism: "Hydraulic balance — pressure-brewed methods need fine grind to slow water flow; gravity methods need coarse grind to allow flow at all. Grind and pressure are the two control variables of a single flow-rate equation.",
+      example: "Espresso (9 bar, talcum-fine) vs. French press (atmospheric, sea-salt-coarse).", strength: "tight" },
+    { a: "Time", b: "Grind size",
+      mechanism: "Short brews need fine grind for surface area to extract enough in seconds; long brews need coarse grind to avoid over-extraction over hours.",
+      example: "Espresso (~30s, fine) vs. cold brew (~16h, coarse).", strength: "tight" },
+    { a: "Filtration", b: "Body / mouthfeel",
+      mechanism: "Paper filters remove oils and fines; metal/no-filter retains them — directly determining cup viscosity and perceived weight on the tongue. Filtration is the mechanism, body is the consequence — which is why we moved 'body' off the axis list and into a covariation card.",
+      example: "V60 (paper, light/clean) vs. French press (mesh, heavy/oily).", strength: "tight" },
+    { a: "Cost", b: "Ritual complexity",
+      mechanism: "Expensive setups (espresso) tend to demand more ritual — but the coupling isn't iron. V60 is cheap yet ritual-heavy; drip machines are expensive yet set-and-forget. The breakable convention is interesting precisely because it shows ritual isn't bought, only enabled.",
+      example: "Espresso (expensive, high ritual) vs. V60 (cheap, high ritual) — same ritual end without the cost coupling.", strength: "loose" },
+    { a: "Pressure", b: "Cost",
+      mechanism: "Generating 9 bar reproducibly requires a pump and durable seals; gravity and immersion are free. The capital cost of pressure is what makes the espresso bundle expensive, not the brew itself.",
+      example: "Espresso machine $1000+ to deliver pressure; French press $20 to use no pressure.", strength: "tight" },
+  ],
+
+  // ===== German overrides — same shape, partial allowed; missing keys fall back to top-level =====
+  de: {
+    meta: {
+      title: "/dimensional-map — schnelle Strukturorientierung in fremden Themengebieten",
+      eyebrow: "Claude Code Skill — Demo",
+      h1: "/dimensional-map",
+      headerSub: "Ein Skill, der hilft, die <em>Struktur</em> eines fremden Themengebiets zu erfassen — durch Sichtbarmachen der informativen Achsen, der Verteilung der Ansätze entlang jeder Achse und der Bündel zusammen auftretender Eigenschaften, die jeden Pol definieren. Anwendungsbeispiel: <b>Kaffeezubereitung</b>.",
+      crossref: "Für die <em>Dynamik</em> desselben Themengebiets — wie Inputs auf Outcomes abgebildet werden — siehe das Companion-Skill <a href='playground'>/parameter-playground</a>.",
+      metaCallout: "<div class='meta-h'>Was du hier siehst</div><ul class='bullet-list'><li><b>6 Achsen</b>, die eine Kaffee-Brühmethode prägen: Druck, Zeit, Mahlgrad, Filtration, Kosten, Ritual.</li><li><b>5 Methoden</b> auf jeder Achse (Espresso, AeroPress, V60, French Press, Cold Brew). <b>Espresso</b> ist als Target hervorgehoben — schalte die anderen dazu, um zu vergleichen.</li><li><b>Endpunkt-Dossier</b> unter jeder Skala schlüsselt jeden Pol als <em>Bündel</em> zusammen auftretender Eigenschaften auf, nicht als einzelnen Wert (Espresso ≠ nur '9 bar' — es bündelt feiner Mahlgrad + kurze Zeit + teure Maschine + Ritual).</li><li><b>Radar-Overlay</b> unten zeigt die Silhouette jeder Methode über alle Achsen gleichzeitig; Spitzen und Dellen markieren charakteristische Züge.</li><li><b>Kovariations-Panel</b> unten katalogisiert, welche Achsen sich gegenseitig <em>zwingen</em>, sich gemeinsam zu bewegen — mit Mechanismus, nicht nur Korrelation.</li></ul><div class='meta-why'><b>Ausgearbeitetes Beispiel</b> für den <code>/dimensional-map</code> Claude Code Skill. Framework ist themengebiets-übergreifend — Datei klonen, <code>DATA</code>-Block ersetzen, beliebige Domäne kartieren.</div>",
+      legendLabel: "Vergleichen mit:",
+      radarH: "Silhouetten-Vergleich",
+      radarKind: "alle Achsen auf einmal",
+      radarP1: "Jedes Polygon ist die Silhouette einer Methode über alle Achsen. Mitte = linker Pol. Rand = rechter Pol. Mit den Pills oben Polygone ein-/ausschalten.",
+      radarLookH: "Worauf achten:",
+      radarLook: [
+        "<b>Gesamtradius</b> — grobe Annäherung an die Design-Schwere.",
+        "<b>Dellen</b> — Achsen, auf denen diese Instanz konservativ oder abwesend ist.",
+        "<b>Spitzen</b> — einzelne Vertices am Rand markieren den charakteristischen Zug der Instanz.",
+        "<b>Überlappung</b> — zwischen Polygonen ≈ wie austauschbar zwei Paradigmen sind. Die Nicht-Überlappung ist, wo die echte Designentscheidung sitzt.",
+      ],
+      covarH: "Wie sich Variablen gemeinsam bewegen",
+      covarIntro: "Achsen sind nicht unabhängig. Ein Wert auf einer Achse engt meist den plausiblen Bereich auf anderen ein — Designeinschränkungen, Ökonomie und Engineering-Kopplung erzwingen Korrelationen. Jede Karte nennt den <b>Mechanismus</b>, nicht nur die Korrelation. Stärke: <b>eng</b> = erzwungen (nicht günstig zu entkoppeln); <b>locker</b> = konventionell (eine Ausnahme ist plausibel).",
+      exampleLabel: "Beispiel:",
+      whyBundledLabel: "Warum gebündelt:",
+      targetLabel: "Target:",
+      exemplarLabel: "z.B.",
+      footer: "<b>Einschränkungen.</b> Positionen sind grob — Kaffeezubereitung hat viele Untervarianten ('Pour-over' deckt V60, Chemex, Kalita Wave, alle leicht unterschiedlich). Verteilungs-Schattierung ist illustrativ, nicht gemessen. Confidence-Marken: <code>*</code> gut belegt, <code>~</code> geschätzt, <code>?</code> vermutet. Endpunkt-Bündel beschreiben, was an jedem Pol clustert, keine eisernen Gesetze — Ausnahmen existieren (z.B. AeroPress drückt leicht, ohne feinen Mahlgrad zu verlangen), und solche Ausnahmen sind in der Regel verstehenswert, nicht als Karten-Fehler zu behandeln.",
+    },
+    models: [
+      { name: "Espresso",     full: "Espresso (9-bar-Maschine)" },
+      { name: "AeroPress",    full: "AeroPress" },
+      { name: "V60",          full: "V60 Pour-over" },
+      { name: "French Press", full: "French Press / Cafetière" },
+      { name: "Cold Brew",    full: "Cold Brew (Immersion)" },
+    ],
+    axes: [
+      {
+        name: "Brühdruck", short: "Druck", kind: "Mechanismus",
+        blurb: "Was treibt das Wasser durch das Kaffeemehl — Schwerkraft, Immersion oder Pumpendruck. Die folgenreichste einzelne Variable im Feld; fast alles andere ordnet sich um die Antwort.",
+        leftPole: {
+          label: "Atmosphärisch (Schwerkraft / Immersion)",
+          bundle: ["Schwerkraft oder Immersion treibt die Extraktion", "grober bis mittlerer Mahlgrad", "verzeihend gegenüber Technikfehlern", "einfache Ausrüstung", "lange Kontaktzeit verträglich"],
+          exemplar: "French Press",
+          why: "Ohne Druck treibt nur Diffusion die Extraktion, also ersetzt Zeit die Kraft; grober Mahlgrad verhindert Überextraktion bei langen Zeiten; günstiger Mechanismus rundet das Bündel ab."
+        },
+        rightPole: {
+          label: "9 bar (Espressodruck)",
+          bundle: ["sehr feiner Mahlgrad erforderlich", "~30s Extraktionsfenster", "teure pumpengetriebene Maschine", "präzise Dosierung kritisch", "konzentrierter 1:2-Ertrag"],
+          exemplar: "Espresso",
+          why: "Design-Kopplung — hoher Druck erzwingt feinen Mahlgrad, um den Fluss zu verlangsamen; feiner Mahlgrad verlangt präzise Dosierung und Temperatur; der gesamte Stack ist nötig, um überhaupt Espresso zu brühen."
+        },
+        foot: "Espresso definiert den rechten Pol — 9 bar machen ihn zum Espresso und rechtfertigen und erzwingen den Rest des Bündels (feiner Mahlgrad, schnelle Extraktion, teure Maschine)."
+      },
+      {
+        name: "Extraktionszeit", short: "Zeit", kind: "Kinetik",
+        blurb: "Wie lange Wasser und Kaffeemehl in Kontakt sind. Spannt vier Größenordnungen über das Feld — von ~30 Sekunden bis ~24 Stunden.",
+        leftPole: {
+          label: "Sekunden (~30s)",
+          bundle: ["aggressiver Extraktionshebel (Druck oder Feinheit)", "konzentrierter Ertrag", "schmales Unter-/Überextraktions-Fenster", "techniksensitiv", "viel Crema und Öle"],
+          exemplar: "Espresso",
+          why: "Kurze Zeit erzwingt eine hohe Extraktionsrate, erreichbar nur durch Druck oder extreme Feinheit; die Rate ist schnell, das Fenster eng, keine Zeit zum Korrigieren."
+        },
+        rightPole: {
+          label: "Viele Stunden (12-24h)",
+          bundle: ["Raumtemperatur / kaltes Wasser", "grober Mahlgrad", "geringe Koffein-Extraktionseffizienz", "geringe Säure", "süßes/weiches Profil"],
+          exemplar: "Cold Brew",
+          why: "Lange Zeit bei niedriger Temperatur kehrt die übliche Extraktionskurve um — löslichkeitsgetrieben statt temperaturgetrieben, sodass andere Verbindungen die Tasse dominieren."
+        },
+        foot: "Espresso liegt am äußersten linken Pol — ~30 Sekunden sind grob das gesamte Fenster zwischen unter- und überextrahiert. Das schmale Fenster ist der Grund, warum Espresso techniksensitiv ist."
+      },
+      {
+        name: "Mahlgrad", short: "Mahlgrad", kind: "Geometrie",
+        blurb: "Wie fein der Kaffee gemahlen wird. Geometrie bestimmt Oberfläche und Bett-Permeabilität — und damit sowohl Extraktionsrate als auch Strömungsphysik der Brühmethode.",
+        leftPole: {
+          label: "Sehr fein (Talkum)",
+          bundle: ["Hochdruck-Brühen", "kurze Kontaktzeit", "teure Flachscheiben-Mühle", "Channeling-Risiko", "ohne ihn kein Espresso"],
+          exemplar: "Espresso",
+          why: "Feiner Mahlgrad = hohe Oberfläche pro Volumen, passt nur zu kurzen Brühen unter Druck; günstige Mühlen produzieren kein gleichmäßiges Talkum ohne unerwünschten Feinanteil, der den Fluss blockiert."
+        },
+        rightPole: {
+          label: "Sehr grob (Meersalz)",
+          bundle: ["lange Immersionszeit", "günstige Mühle reicht", "Metallsieb-Filtration ausreichend", "Sediment in der Tasse", "einfaches Ritual"],
+          exemplar: "French Press",
+          why: "Grobe Partikel vertragen langen Kontakt ohne Überextraktion; große Partikel passieren leicht ein Metallsieb, und günstige Mühlen sind bei grobem Mahlgrad gleichmäßig genug."
+        },
+        foot: "Espresso braucht den feinsten Mahlgrad im Feld, fast Talkum. Das folgt aus dem 9-bar-Druck (Kovariation #1) — ohne feinen Mahlgrad rauscht das Wasser zu schnell hindurch, als dass überhaupt Extraktion stattfinden könnte."
+      },
+      {
+        name: "Filtration", short: "Filtration", kind: "Tassenzusammensetzung",
+        blurb: "Was der Brühvorgang auf dem Weg in die Tasse passiert. Bestimmt, was außer Wasser und gelösten Feststoffen in der Tasse landet: Öle, Feinanteile, Sediment.",
+        leftPole: {
+          label: "Immersion / Metallsieb",
+          bundle: ["Öle und Feinanteile gehen durch", "schwereres Mundgefühl", "Sediment in der Tasse", "einfachere Hardware", "kein Einwegmüll"],
+          exemplar: "French Press",
+          why: "Geringere Filtration = mehr gelöste Feststoffe und Öle in der Tasse, also ist die Tasse physisch schwerer — ein Bündel aus Mundgefühl + Optik + Hardware-Einfachheit."
+        },
+        rightPole: {
+          label: "Papier-gefiltert",
+          bundle: ["sauberere Tasse", "Öle werden zurückgehalten", "hellere Säurewahrnehmung", "Einweg-Papiermüll", "ermöglicht lange Schwerkraft-Kontaktzeit"],
+          exemplar: "V60 Pour-over",
+          why: "Papier entfernt Lipide und feine Partikel, was die Wahrnehmung der Aromabalance verändert und langsame Schwerkraft-Brühen ermöglicht, die durch ein Metallsieb überextrahieren würden."
+        },
+        foot: "Espresso liegt mittig — kein Papierfilter, aber der Puck filtert sich im Sieb selbst. Deshalb ist Espresso vollmundig, ohne French-Press-artiges Sediment in der Tasse."
+      },
+      {
+        name: "Ausstattungskosten", short: "Kosten", kind: "Kapital",
+        blurb: "Anfangsinvestition, um die Methode richtig zu brühen. Spannt fast zwei Größenordnungen — von $20 bis $3000+. Das günstige und das teure Ende haben sehr unterschiedliche Kulturen.",
+        leftPole: {
+          label: "Günstig ($10-50)",
+          bundle: ["Handmühle reicht", "kein Strom", "tragbar / reisefreundlich", "keine Kalibrierung", "verzeihende Rezepte"],
+          exemplar: "French Press",
+          why: "Niedrige Kosten erzwingen einfache Mechanismen, die Benutzerfehler verzeihen und gut reisen; kein Präzisionsinstrument bedeutet keine Kalibrierung nötig."
+        },
+        rightPole: {
+          label: "Teuer ($1000+)",
+          bundle: ["Präzisions-Flach-/Kegelmühle", "pumpengetriebene 9-bar-Maschine", "PID-Temperatursteuerung", "Dampfdüse", "tägliches Wartungsritual"],
+          exemplar: "Prosumer-Espresso-Setup",
+          why: "Der Espresso-Stil verlangt Mühle + Druck + Temperatur gleichzeitig; jede Komponente ist ein Präzisionsinstrument, und sie koppeln als Stack zusammen."
+        },
+        foot: "Espressos definierende Kapitalkosten: ein Prosumer-Setup kostet $1000-3000+, bevor du einen einzigen Shot gezogen hast. Die Mühle ist oft die teurere Komponente."
+      },
+      {
+        name: "Ritual-Komplexität", short: "Ritual", kind: "Benutzeraufwand",
+        blurb: "Wie viel aktive Kontrolle der Benutzer während des Brühens ausüben muss — von 'einschalten und weggehen' bis zur vollen Barista-Handwerkskunst. Spannt das gesamte 'Pflichtaufgabe oder Hobby?'-Spektrum.",
+        leftPole: {
+          label: "Einschalten-und-vergessen",
+          bundle: ["minimaler Benutzereingriff", "keine Zeitfenster", "verzeihend bei Varianz", "skaliert leicht auf viele Tassen", "von jedem reproduzierbar"],
+          exemplar: "Cold Brew",
+          why: "Langes, unkritisches Zeitfenster bedeutet, der Benutzer kann eingießen und weggehen; nichts hängt von der Ausführungsfertigkeit ab, also ist das Ergebnis personenkonsistent."
+        },
+        rightPole: {
+          label: "Mehrstufiges Handwerk",
+          bundle: ["zeitlich abgestimmtes Blooming und Aufgießen", "Mahlen on demand", "Tuning pro Tasse", "Hobby-Fertigkeitsentwicklung", "schmale Ausführungsfenster"],
+          exemplar: "V60 Pour-over / Espresso ziehen",
+          why: "Kurze Brühen und Hochextraktions-Techniken zwingen den Benutzer, mehrere Variablen in engen Fenstern zu kontrollieren; Meisterschaft ist eine echte Fertigkeit, die zwischen Praktikern variiert."
+        },
+        foot: "Espresso-Ziehen hat viele Schritte in engen Fenstern: Dosieren, Verteilen, Tampen, Einsetzen, Ziehen, Druckprofil überwachen, am richtigen Ertrag stoppen. Meisterschaft dauert Monate und variiert von Barista zu Barista."
+      },
+    ],
+    covariations: [
+      { a: "Druck", b: "Mahlgrad",
+        mechanism: "Hydraulische Balance — druckbetriebene Methoden brauchen feinen Mahlgrad, um den Wasserfluss zu verlangsamen; Schwerkraft-Methoden brauchen groben Mahlgrad, damit überhaupt Fluss entsteht. Mahlgrad und Druck sind die beiden Stellgrößen einer einzigen Durchfluss-Gleichung.",
+        example: "Espresso (9 bar, talkumfein) vs. French Press (atmosphärisch, meersalzgrob).", strength: "eng" },
+      { a: "Zeit", b: "Mahlgrad",
+        mechanism: "Kurze Brühen brauchen feinen Mahlgrad für genug Oberfläche, um in Sekunden zu extrahieren; lange Brühen brauchen groben Mahlgrad, um Überextraktion über Stunden zu vermeiden.",
+        example: "Espresso (~30s, fein) vs. Cold Brew (~16h, grob).", strength: "eng" },
+      { a: "Filtration", b: "Körper / Mundgefühl",
+        mechanism: "Papierfilter entfernen Öle und Feinanteile; Metall/kein Filter behält sie — bestimmt direkt Tassenviskosität und gefühltes Gewicht auf der Zunge. Filtration ist der Mechanismus, Körper die Folge — deshalb haben wir 'Körper' von der Achsen-Liste in eine Kovariations-Karte verschoben.",
+        example: "V60 (Papier, leicht/sauber) vs. French Press (Sieb, schwer/ölig).", strength: "eng" },
+      { a: "Kosten", b: "Ritual-Komplexität",
+        mechanism: "Teure Setups (Espresso) verlangen meist mehr Ritual — aber die Kopplung ist nicht eisern. V60 ist günstig und ritualreich; Drip-Maschinen sind teuer und einschalten-und-vergessen. Die brechbare Konvention ist gerade deshalb interessant, weil sie zeigt: Ritual wird nicht gekauft, nur ermöglicht.",
+        example: "Espresso (teuer, hohes Ritual) vs. V60 (günstig, hohes Ritual) — gleiches Ritual-Ende ohne Kosten-Kopplung.", strength: "locker" },
+      { a: "Druck", b: "Kosten",
+        mechanism: "9 bar reproduzierbar zu erzeugen verlangt eine Pumpe und haltbare Dichtungen; Schwerkraft und Immersion sind kostenlos. Die Kapitalkosten des Drucks machen das Espresso-Bündel teuer, nicht der Brühvorgang selbst.",
+        example: "Espressomaschine $1000+ um Druck zu liefern; French Press $20 um keinen Druck zu nutzen.", strength: "eng" },
+    ],
+  },
+};
+
+// =============================================================================
+// === END DATA. Render code below — generic, do not edit per-map.            ===
+// =============================================================================
+
+// ---- Language detection + active-data merge --------------------------------
+
+function detectLang() {
+  let pref = null;
+  try { pref = (document.cookie.match(/(?:^|;\s*)dt_lang_pref=([^;]+)/) || [])[1]; } catch (e) {}
+  if (pref === "en" || pref === "de") return pref;
+  const langs = (navigator.languages || [navigator.language || ""]);
+  if (langs.some(l => /^de\b/i.test(l))) return "de";
+  return "en";
+}
+function setLangCookie(lang) {
+  try { document.cookie = "dt_lang_pref=" + lang + "; path=/; max-age=31536000; samesite=lax"; } catch (e) {}
+}
+
+// Merge canonical (top-level) DATA with the active language overrides.
+// Missing keys in the override fall back to canonical, so partial translations work.
+function buildActive(lang) {
+  if (lang !== "de" || !DATA.de) {
+    return { meta: DATA.meta, models: DATA.models, axes: DATA.axes, covariations: DATA.covariations };
+  }
+  const o = DATA.de;
+  return {
+    meta: { ...DATA.meta, ...(o.meta || {}) },
+    models: DATA.models.map((m, i) => ({ ...m, ...((o.models && o.models[i]) || {}) })),
+    axes: DATA.axes.map((a, i) => {
+      const oa = (o.axes && o.axes[i]) || {};
+      return {
+        ...a, ...oa,
+        leftPole:  { ...a.leftPole,  ...(oa.leftPole  || {}) },
+        rightPole: { ...a.rightPole, ...(oa.rightPole || {}) },
+      };
+    }),
+    covariations: DATA.covariations.map((c, i) =>
+      ({ ...c, ...((o.covariations && o.covariations[i]) || {}) })),
+  };
+}
+
+let currentLang = detectLang();
+let ACTIVE = buildActive(currentLang);
+
+// ---- State -----------------------------------------------------------------
+
+const visible = new Set();
+DATA.models.forEach(m => { if (m.isTarget) visible.add(m.key); });
+
+// Inject per-model CSS rules from canonical DATA (color is language-independent).
+(function injectModelStyles() {
+  const css = DATA.models.map(m => `
+    .marker[data-key="${m.key}"]    { background: ${m.color}; }
+    .pill[data-key="${m.key}"] .dot { background: ${m.color}; }
+    .radar-poly[data-key="${m.key}"]{ fill: ${m.color}; stroke: ${m.color}; }
+  `).join("\n");
+  const style = document.createElement("style");
+  style.textContent = css;
+  document.head.appendChild(style);
+})();
+
+// ---- Render ----------------------------------------------------------------
+
+function renderHeaderAndMeta() {
+  document.getElementById("page-title").textContent = ACTIVE.meta.title;
+  document.documentElement.lang = currentLang;
+  if (ACTIVE.meta.eyebrow) document.getElementById("eyebrow").textContent = ACTIVE.meta.eyebrow;
+  document.getElementById("h1").textContent = ACTIVE.meta.h1;
+  document.getElementById("header-sub").innerHTML = ACTIVE.meta.headerSub;
+  if (ACTIVE.meta.crossref) document.getElementById("crossref").innerHTML = ACTIVE.meta.crossref;
+  document.getElementById("meta-callout").innerHTML = ACTIVE.meta.metaCallout;
+  document.getElementById("footer-note").innerHTML = ACTIVE.meta.footer;
+
+  document.getElementById("radar-h").innerHTML = `${ACTIVE.meta.radarH} <span class="kind">${ACTIVE.meta.radarKind}</span>`;
+  document.getElementById("radar-p1").innerHTML = ACTIVE.meta.radarP1;
+  document.getElementById("radar-look-h").textContent = ACTIVE.meta.radarLookH;
+  document.getElementById("radar-look-list").innerHTML =
+    ACTIVE.meta.radarLook.map(s => `<li>${s}</li>`).join("");
+}
+
+function renderLegend() {
+  const root = document.getElementById("legend");
+  let html = `<span class="lbl">${ACTIVE.meta.legendLabel}</span>`;
+  for (let i = 0; i < ACTIVE.models.length; i++) {
+    const m = ACTIVE.models[i];
+    const canon = DATA.models[i];
+    const isTarget = !!canon.isTarget;
+    const cls = `pill${isTarget ? " on target" : ""}${visible.has(canon.key) && !isTarget ? " on" : ""}`;
+    html += `<span class="${cls}" data-key="${canon.key}"><span class="dot"></span>${m.full}</span>`;
+  }
+  root.innerHTML = html;
+}
+
+function densitySVG(peaks, idSuffix) {
+  const stops = 21; const out = [];
+  for (let i = 0; i <= stops; i++) {
+    const x = i / stops; let y = 0;
+    for (const p of peaks) { const d = (x - p.at) / p.w; y += p.h * Math.exp(-d * d * 2); }
+    y = Math.min(1, y);
+    const alpha = 0.05 + 0.55 * y;
+    out.push(`<stop offset="${(x * 100).toFixed(1)}%" stop-color="rgba(180,200,230,${alpha.toFixed(3)})"/>`);
+  }
+  return `<svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 34" style="position:absolute;inset:0;border-radius:6px;">
+    <defs><linearGradient id="g_${idSuffix}" x1="0" x2="1" y1="0" y2="0">${out.join("")}</linearGradient></defs>
+    <rect x="0" y="0" width="100" height="34" fill="url(#g_${idSuffix})"/>
+  </svg>`;
+}
+
+function renderDossier(axis) {
+  const pole = (p, side) => `
+    <div class="dossier-pole ${side}">
+      <div class="dossier-head">
+        <span class="dossier-label">${p.label}</span>
+        <span class="dossier-exemplar"><b>${ACTIVE.meta.exemplarLabel}</b> ${p.exemplar}</span>
+      </div>
+      <ul class="dossier-bundle">${p.bundle.map(b => `<li>${b}</li>`).join("")}</ul>
+      <div class="dossier-why"><b>${ACTIVE.meta.whyBundledLabel}</b> ${p.why}</div>
+    </div>`;
+  return `<div class="dossier">${pole(axis.leftPole, "left")}${pole(axis.rightPole, "right")}</div>`;
+}
+
+function renderAxes() {
+  const root = document.getElementById("scales");
+  root.innerHTML = "";
+  for (let ai = 0; ai < ACTIVE.axes.length; ai++) {
+    const axis = ACTIVE.axes[ai];
+    const canonAxis = DATA.axes[ai];
+    const el = document.createElement("div");
+    el.className = "axis"; el.dataset.id = canonAxis.id;
+
+    const ordered = ACTIVE.models
+      .map((m, i) => ({ ...m, key: DATA.models[i].key, isTarget: DATA.models[i].isTarget,
+                        x: canonAxis.pos[DATA.models[i].key],
+                        conf: (canonAxis.confidence || {})[DATA.models[i].key] || "" }))
+      .filter(m => typeof m.x === "number")
+      .sort((a, b) => a.x - b.x);
+
+    let lastSide = "below"; let lastX = -1;
+    const markers = ordered.map(m => {
+      let side;
+      if (m.isTarget) side = "above";
+      else if (m.x < 0.10 || m.x > 0.90) side = "above";
+      else {
+        side = lastSide === "below" ? "above" : "below";
+        if (Math.abs(m.x - lastX) > 0.10) side = "below";
+      }
+      lastSide = side; lastX = m.x;
+      const hidden = m.isTarget ? false : !visible.has(m.key);
+      const targetCls = m.isTarget ? " target" : "";
+      const conf = m.conf ? `<span class="conf">${m.conf}</span>` : "";
+      const title = `${m.full}${m.conf ? ` [${m.conf}]` : ""} — ${(m.x).toFixed(2)}`;
+      return `<div class="marker lbl-${side}${targetCls}" data-key="${m.key}" data-hidden="${hidden ? 1 : 0}" style="left:${(m.x * 100).toFixed(2)}%" title="${title}">
+                <span class="label">${m.name}${conf}</span>
+              </div>`;
+    }).join("");
+
+    el.innerHTML = `
+      <div class="axis-head">
+        <div class="axis-name">${axis.name}<span class="kind">${axis.kind}</span></div>
+      </div>
+      <p class="axis-blurb">${axis.blurb}</p>
+      <div class="scale-wrap">
+        <div class="density">${densitySVG(canonAxis.densityPeaks, canonAxis.id)}</div>
+        <div class="scale-bar"></div>
+        <div class="endpoints"><span>${axis.leftPole.label}</span><span>${axis.rightPole.label}</span></div>
+        ${markers}
+      </div>
+      ${renderDossier(axis)}
+      <div class="axis-foot"><b>${ACTIVE.meta.targetLabel}</b> ${axis.foot}</div>
+    `;
+    root.appendChild(el);
+  }
+}
+
+function refreshMarkers() {
+  document.querySelectorAll(".marker").forEach(el => {
+    const key = el.dataset.key;
+    const m = DATA.models.find(x => x.key === key);
+    if (!m) return;
+    if (m.isTarget) { el.dataset.hidden = "0"; return; }
+    el.dataset.hidden = visible.has(key) ? "0" : "1";
+  });
+}
+
+const RADAR_CX = 190, RADAR_CY = 175, RADAR_R = 110;
+function radarPoint(i, frac, N) {
+  const angle = (-90 + i * (360 / N)) * Math.PI / 180;
+  return { x: RADAR_CX + RADAR_R * frac * Math.cos(angle),
+           y: RADAR_CY + RADAR_R * frac * Math.sin(angle) };
+}
+function renderRadar() {
+  const svg = document.getElementById("radar-svg");
+  const N = ACTIVE.axes.length;
+  let html = "";
+  for (const frac of [0.25, 0.5, 0.75, 1.0]) {
+    const pts = [];
+    for (let i = 0; i < N; i++) { const p = radarPoint(i, frac, N); pts.push(`${p.x.toFixed(1)},${p.y.toFixed(1)}`); }
+    html += `<polygon class="radar-grid" points="${pts.join(" ")}" opacity="${0.4 + 0.15 * frac}"/>`;
+  }
+  for (let i = 0; i < N; i++) {
+    const outer = radarPoint(i, 1.0, N);
+    html += `<line class="radar-axis-line" x1="${RADAR_CX}" y1="${RADAR_CY}" x2="${outer.x.toFixed(1)}" y2="${outer.y.toFixed(1)}"/>`;
+    const lbl = radarPoint(i, 1.16, N);
+    let anchor = "middle";
+    if (lbl.x > RADAR_CX + 4) anchor = "start";
+    else if (lbl.x < RADAR_CX - 4) anchor = "end";
+    let baseline = "middle";
+    if (lbl.y > RADAR_CY + 4) baseline = "hanging";
+    else if (lbl.y < RADAR_CY - 4) baseline = "auto";
+    html += `<text class="radar-axis-label" x="${lbl.x.toFixed(1)}" y="${lbl.y.toFixed(1)}" text-anchor="${anchor}" dominant-baseline="${baseline}">${ACTIVE.axes[i].short}</text>`;
+  }
+  const t1 = radarPoint(0, 0.5, N);
+  html += `<text class="radar-tick-label" x="${(t1.x + 4).toFixed(1)}" y="${t1.y.toFixed(1)}" dominant-baseline="middle">0.5</text>`;
+  const t2 = radarPoint(0, 1.0, N);
+  html += `<text class="radar-tick-label" x="${(t2.x + 4).toFixed(1)}" y="${t2.y.toFixed(1)}" dominant-baseline="middle">1.0</text>`;
+  const order = DATA.models.slice().map((m, i) => ({ canon: m, idx: i }))
+    .sort((a, b) => (a.canon.isTarget ? 1 : 0) - (b.canon.isTarget ? 1 : 0));
+  for (const { canon, idx } of order) {
+    const pts = [];
+    for (let i = 0; i < N; i++) {
+      const v = DATA.axes[i].pos[canon.key];
+      if (typeof v !== "number") continue;
+      const p = radarPoint(i, v, N);
+      pts.push(`${p.x.toFixed(1)},${p.y.toFixed(1)}`);
+    }
+    if (pts.length !== N) continue;
+    const hidden = canon.isTarget ? false : !visible.has(canon.key);
+    const cls = `radar-poly${canon.isTarget ? " target" : ""}`;
+    html += `<polygon class="${cls}" data-key="${canon.key}" data-hidden="${hidden ? 1 : 0}" points="${pts.join(" ")}"><title>${ACTIVE.models[idx].full}</title></polygon>`;
+  }
+  svg.innerHTML = html;
+}
+function refreshRadar() {
+  document.querySelectorAll(".radar-poly").forEach(el => {
+    const key = el.dataset.key;
+    const m = DATA.models.find(x => x.key === key);
+    if (!m) return;
+    if (m.isTarget) { el.dataset.hidden = "0"; return; }
+    el.dataset.hidden = visible.has(key) ? "0" : "1";
+  });
+}
+
+function renderCovar() {
+  const root = document.getElementById("covar");
+  let html = `<h2>${ACTIVE.meta.covarH}</h2>
+    <p class="intro">${ACTIVE.meta.covarIntro}</p>
+    <div class="covar-grid">`;
+  for (const c of ACTIVE.covariations) {
+    const strengthCls = (c.strength || "").toLowerCase();
+    html += `
+      <div class="covar-card">
+        <div class="pair"><span>${c.a} <em>↔</em> ${c.b}</span><span class="strength ${strengthCls}">${c.strength || ""}</span></div>
+        <p class="mech">${c.mechanism}</p>
+        <p class="ex"><b>${ACTIVE.meta.exampleLabel}</b> ${c.example}</p>
+      </div>`;
+  }
+  html += "</div>";
+  root.innerHTML = html;
+}
+
+// ---- Wiring ---------------------------------------------------------------
+
+function renderAll() {
+  ACTIVE = buildActive(currentLang);
+  renderHeaderAndMeta();
+  renderLegend();
+  renderAxes();
+  renderRadar();
+  renderCovar();
+  syncLangPills();
+  bindPills();  // pills are re-rendered each time, so we re-bind
+}
+
+function syncLangPills() {
+  document.querySelectorAll(".lang-pill").forEach(el => {
+    el.classList.toggle("active", el.dataset.lang === currentLang);
+  });
+}
+
+function bindLangToggle() {
+  document.querySelectorAll(".lang-pill").forEach(el => {
+    el.addEventListener("click", () => {
+      const lang = el.dataset.lang;
+      if (lang !== "en" && lang !== "de") return;
+      if (lang === currentLang) return;
+      currentLang = lang;
+      setLangCookie(lang);
+      renderAll();
+    });
+  });
+}
+
+function bindPills() {
+  document.querySelectorAll(".legend .pill").forEach(pill => {
+    const key = pill.dataset.key;
+    const m = DATA.models.find(x => x.key === key);
+    if (!m || m.isTarget) return;
+    pill.addEventListener("click", () => {
+      if (visible.has(key)) { visible.delete(key); pill.classList.remove("on"); }
+      else                  { visible.add(key);    pill.classList.add("on"); }
+      refreshMarkers();
+      refreshRadar();
+    });
+  });
+}
+
+bindLangToggle();
+renderAll();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Cloudflare / wrangler
+.wrangler/
+.dev.vars
+wrangler.toml.bak
+
+# Node (if anyone ever adds tooling)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build artifacts (template outputs, if scripted later)
+dist/
+build/
+
+# Logs
+*.log

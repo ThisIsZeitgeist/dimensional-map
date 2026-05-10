@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<!--
+  parameter-playground renderer — self-contained, no build step.
+  Schema lives in `const PLAYGROUND = { ... }` block below the marker.
+  Optional bilingual mode: provide `PLAYGROUND.de = { meta, inputs, outputs,
+  presets }` with the same shape (full or partial) for a German variant.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title id="page-title">Playground</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #161a22;
+    --panel-2: #1d222c;
+    --ink: #e8ecf1;
+    --ink-mute: #9aa3b2;
+    --ink-dim: #6b7484;
+    --accent: #79b8ff;
+    --accent-2: #ffb86b;
+    --accent-3: #b392f0;
+    --accent-4: #85e89d;
+    --warn: #f97583;
+    --rule: #2a3140;
+    --rule-2: #1f2530;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg); color: var(--ink); margin: 0; }
+  body {
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+    max-width: 1100px; margin: 0 auto; padding: 40px 28px 96px;
+  }
+  header { margin-bottom: 10px; }
+  header .skill-tag {
+    display: inline-block;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.10em;
+    color: var(--accent-2); border: 1px solid rgba(255,184,107,0.3);
+    padding: 3px 10px; border-radius: 999px;
+    margin-bottom: 12px; font-weight: 600;
+  }
+  header h1 {
+    font-size: 30px; margin: 0 0 8px; letter-spacing: -0.005em;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-weight: 600;
+  }
+  header .sub { color: var(--ink-mute); font-size: 15px; max-width: 820px; line-height: 1.55; }
+  header .sub b { color: var(--ink); font-weight: 600; }
+  header .sub em { color: var(--ink); font-style: normal; font-weight: 600; }
+  header .crossref {
+    margin: 10px 0 0; font-size: 13px; color: var(--ink-dim);
+    padding: 8px 12px; background: var(--panel-2);
+    border: 1px solid var(--rule-2); border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0;
+    max-width: 820px;
+  }
+  header .crossref a {
+    color: var(--accent); text-decoration: none; font-weight: 600;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  header .crossref a:hover { text-decoration: underline; }
+  header .crossref em { color: var(--ink); font-style: normal; }
+
+  /* Language toggle */
+  .lang-toggle {
+    position: fixed; top: 14px; right: 14px; z-index: 100;
+    background: rgba(22,26,34,0.85);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    padding: 3px;
+    display: flex; gap: 1px;
+    font-size: 12px; letter-spacing: 0.06em; font-weight: 600;
+  }
+  .lang-pill {
+    padding: 4px 11px; border-radius: 999px;
+    color: var(--ink-mute); cursor: pointer; user-select: none;
+    transition: background 120ms, color 120ms;
+  }
+  .lang-pill:hover { color: var(--ink); }
+  .lang-pill.active { background: var(--panel-2); color: var(--ink); }
+
+  /* Top-of-page summary */
+  .meta {
+    background: var(--panel); border: 1px solid var(--rule);
+    border-radius: 12px;
+    padding: 22px 26px 24px; margin: 18px 0 20px;
+  }
+  .meta strong { color: var(--ink); } .meta b { color: var(--ink); font-weight: 600; }
+  .meta em { color: var(--ink); font-style: normal; }
+  .meta .meta-h {
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.09em;
+    color: var(--ink-dim); margin: 0 0 14px; font-weight: 700;
+  }
+  .meta ul.bullet-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 9px; }
+  .meta ul.bullet-list li {
+    color: var(--ink-mute); font-size: 14px; line-height: 1.55;
+    padding-left: 22px; position: relative;
+  }
+  .meta ul.bullet-list li::before {
+    content: ""; position: absolute;
+    left: 4px; top: 9px; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent-2);
+  }
+  .meta ul.bullet-list li:nth-child(2)::before { background: var(--accent-3); }
+  .meta ul.bullet-list li:nth-child(3)::before { background: var(--accent-4); }
+  .meta ul.bullet-list li:nth-child(4)::before { background: var(--accent); }
+  .meta ul.bullet-list li:nth-child(5)::before { background: var(--warn); }
+  .meta .meta-why {
+    margin: 14px 0 0; padding-top: 14px;
+    border-top: 1px solid var(--rule-2);
+    color: var(--ink-mute); font-size: 13px; line-height: 1.6;
+  }
+  .meta .meta-why a { color: var(--accent-2); }
+  .meta .meta-why code {
+    background: rgba(255,255,255,0.04); border: 1px solid var(--rule-2);
+    border-radius: 4px; padding: 1px 5px; font-size: 12px; color: var(--accent-2);
+  }
+
+  .section-h {
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.07em;
+    color: var(--ink-dim); margin: 26px 0 10px; font-weight: 600;
+  }
+
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0 18px; }
+  .presets-label { font-size: 12px; color: var(--ink-dim); margin-right: 8px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .preset {
+    padding: 5px 12px; border: 1px solid var(--rule); border-radius: 999px;
+    background: var(--panel); color: var(--ink-mute); font-size: 12px;
+    cursor: pointer; user-select: none;
+    transition: background 120ms, color 120ms, border-color 120ms;
+  }
+  .preset:hover { color: var(--ink); border-color: var(--rule-2); }
+  .preset.active { background: var(--panel-2); color: var(--ink); border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .preset.reset { color: var(--ink-dim); }
+
+  .inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 12px; }
+  .input { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 14px 16px; }
+  .input-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; gap: 12px; }
+  .input-name { font-weight: 600; font-size: 14px; }
+  .input-value { color: var(--accent-2); font-size: 13px; font-variant-numeric: tabular-nums; min-width: 70px; text-align: right; }
+  .input-blurb { color: var(--ink-mute); font-size: 12px; margin: 4px 0 10px; line-height: 1.5; }
+  .input-endpoints { display: flex; justify-content: space-between; font-size: 10px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 6px; }
+
+  input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 6px; padding: 0;
+    background: var(--rule); border-radius: 3px; outline: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--accent); cursor: pointer;
+    border: 2px solid var(--bg); box-shadow: 0 0 0 1px var(--rule);
+    transition: transform 100ms;
+  }
+  input[type=range]:hover::-webkit-slider-thumb { transform: scale(1.18); }
+  input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--accent); cursor: pointer; border: 2px solid var(--bg); }
+  input[type=range]:active::-webkit-slider-thumb { background: var(--accent-2); }
+
+  .outputs { display: flex; flex-direction: column; gap: 8px; }
+  .output {
+    background: var(--panel); border: 1px solid var(--rule); border-radius: 8px;
+    padding: 12px 16px;
+    display: grid; grid-template-columns: 170px 1fr 50px;
+    align-items: center; gap: 16px;
+  }
+  .output-name { font-weight: 600; font-size: 13px; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+  .output-name .swatch { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 2px var(--panel); }
+  .output-blurb { font-size: 11px; color: var(--ink-dim); margin: 2px 0 0; line-height: 1.45; }
+  .output-bar-bg { height: 14px; background: var(--panel-2); border: 1px solid var(--rule-2); border-radius: 7px; overflow: hidden; position: relative; }
+  .output-bar-fill { height: 100%; transition: width 200ms ease, background 200ms ease; border-radius: 6px; }
+  .output-value { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-mute); font-size: 12px; }
+
+  .notes {
+    background: var(--panel); border: 1px solid var(--rule); border-radius: 8px;
+    padding: 16px 20px; margin-top: 24px;
+    color: var(--ink-mute); font-size: 13px; line-height: 1.6;
+  }
+  .notes h3 { font-size: 14px; margin: 0 0 8px; color: var(--ink); font-weight: 600; }
+  .notes b { color: var(--ink); }
+  .notes em { color: var(--ink); font-style: normal; }
+  .notes p { margin: 6px 0; }
+
+  .footer-note { margin-top: 22px; color: var(--ink-dim); font-size: 12px; line-height: 1.6; border-top: 1px solid var(--rule-2); padding-top: 16px; }
+  .footer-note b { color: var(--ink-mute); }
+
+  @media (max-width: 720px) {
+    body { padding: 60px 14px 60px; }
+    .output { grid-template-columns: 130px 1fr 42px; gap: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="lang-toggle" role="navigation" aria-label="Language">
+  <span class="lang-pill" data-lang="en">EN</span>
+  <span class="lang-pill" data-lang="de">DE</span>
+</div>
+
+<header>
+  <span class="skill-tag" id="eyebrow"></span>
+  <h1 id="h1"></h1>
+  <p class="sub" id="header-sub"></p>
+  <p class="crossref" id="crossref"></p>
+</header>
+
+<div class="meta" id="meta"></div>
+
+<div class="section-h" id="section-presets-h"></div>
+<div class="presets" id="presets"></div>
+
+<div class="section-h" id="section-inputs-h"></div>
+<div class="inputs" id="inputs"></div>
+
+<div class="section-h" id="section-outputs-h"></div>
+<div class="outputs" id="outputs"></div>
+
+<div class="notes" id="notes"></div>
+<div class="footer-note" id="footer"></div>
+
+<script>
+"use strict";
+
+// =============================================================================
+// === DATA — edit this block when reusing the template.                     ===
+// === Top-level fields are the canonical (default) language. Add `de: {...}` ===
+// === for a German variant; the toggle picks it. See parameter-playground   ===
+// === skill for schema details.                                              ===
+// =============================================================================
+
+const PLAYGROUND = {
+  meta: {
+    title: "/parameter-playground — feel the dynamics of a domain",
+    eyebrow: "Claude Code skill — demo",
+    h1: "/parameter-playground",
+    headerSub: "A skill that helps you feel the <em>dynamics</em> of a domain — by playing interactively with controllable inputs and observing how outcomes shift. Worked example: <b>coffee extraction</b> — four input sliders (water temperature, grind, time, pressure) drive five live outcome bars (bitterness, acidity, body, caffeine, clarity).",
+    crossref: "For the <em>structure</em> of the same domain — the design space and its bundles — see the companion skill <a href='map'>/dimensional-map</a>.",
+    metaCallout: "<div class='meta-h'>What you can do here</div><ul class='bullet-list'><li><b>4 input sliders</b>: water temperature, grind coarseness, brew time, pressure. Drag any of them.</li><li><b>5 outcome bars</b> update live: bitterness, acidity, body, caffeine yield, flavour clarity.</li><li><b>5 presets</b> snap the inputs to known methods (espresso, AeroPress, V60, French press, cold brew). Click between them to <em>feel</em> the bundle structure as a transformation.</li><li><b>Try defying the bundle</b>: high pressure with coarse grind, or low temp with short time. Combinations that don't show up in the field reveal <em>why</em> — the model predicts a visibly off cup.</li><li><b>Teaching-grade, not lab-grade</b>: directions of effect are right; magnitudes are eyeballed for pedagogy.</li></ul><div class='meta-why'><b>Companion artifact</b> to the <a href='map'>dimensional map</a>. The map shows <em>where</em> instances sit; the playground shows <em>why</em> they sit there — by making the input → outcome relationships interactive.</div>",
+    presetsSectionH: "Try a preset",
+    inputsSectionH: "Input variables — drag to explore",
+    outputsSectionH: "Predicted outcomes",
+    presetsLabel: "Method:",
+    resetLabel: "Reset",
+    notesH: "How this works",
+    notes: "<p>Each output is a <b>signed weighted sum</b> of input contributions, with optional <b>non-monotonic peaks</b>: some outcomes rise then fall as their driving input grows (acidity peaks at moderate temperature and time; clarity declines as anything that drives extraction goes up). Coefficients and peaks are listed in the DATA block at the top of the source.</p><p>This is <b>teaching-grade, not lab-grade</b> — it's meant to make the relationships <em>visible</em>, not predict your next cup. Real extraction has hundreds of variables, non-linearities at every level, and bean-specific behaviour. The playground is to coffee what a sketched ƒ(x,y) is to fluid dynamics: useful, abstract, wrong in the details.</p><p><b>The point of presets:</b> they're the brewing methods from the dimensional map, projected back into input space. Click 'Espresso', then 'Cold brew' — watch the outputs flip. Then try high pressure with coarse grind: see why that combination doesn't show up in the field (low everything, watery body, no acidity). The playground lets you <em>break the bundles</em> — every covariation in the map shows up here as 'why moving one slider alone gives a worse cup than moving the bundle together'.</p>",
+    footer: "<b>Caveats.</b> Coefficients are illustrative — the directions are right (hotter is more bitter, longer is more bitter, etc.) but magnitudes are eyeballed for pedagogy. The peak inputs (where acidity stops rising) are real phenomena but the exact peak position varies by bean, water chemistry, and palate. Treat this as a way to develop intuition, not as a recipe optimiser.",
+  },
+
+  inputs: [
+    {
+      id: "temp", name: "Water temperature",
+      leftLabel: "Cold (60°C)", rightLabel: "Boiling (100°C)",
+      blurb: "Higher temperature = faster extraction overall, but past ~93°C bitter compounds start dominating sweet ones.",
+      default: 0.8,
+      formatValue: (v) => Math.round(60 + v * 40) + "°C"
+    },
+    {
+      id: "grind", name: "Grind coarseness",
+      leftLabel: "Talcum (very fine)", rightLabel: "Sea salt (very coarse)",
+      blurb: "Finer = more surface area = more extraction per unit time. Espresso uses talcum; cold brew uses coarse.",
+      default: 0.5,
+      formatValue: (v) => {
+        const labels = ["Talcum", "Very fine", "Fine", "Medium-fine", "Medium", "Medium-coarse", "Coarse", "Very coarse"];
+        return labels[Math.min(labels.length - 1, Math.floor(v * labels.length))];
+      }
+    },
+    {
+      id: "time", name: "Brew time",
+      leftLabel: "~15 seconds", rightLabel: "~24 hours",
+      blurb: "Logarithmic — espresso ~30s, V60 ~3min, French press ~4min, cold brew ~16h. Spans 4 orders of magnitude.",
+      default: 0.25,
+      formatValue: (v) => {
+        const sec = 15 * Math.pow((24 * 3600) / 15, v);
+        if (sec < 60) return Math.round(sec) + "s";
+        if (sec < 3600) return Math.round(sec / 60) + "m";
+        return (sec / 3600).toFixed(sec < 36000 ? 1 : 0) + "h";
+      }
+    },
+    {
+      id: "pressure", name: "Brewing pressure",
+      leftLabel: "Atmospheric (1 bar)", rightLabel: "Espresso (9 bar)",
+      blurb: "Espresso machines deliver 9 bar; everything else is gravity or immersion at atmospheric pressure.",
+      default: 0.0,
+      formatValue: (v) => (1 + v * 8).toFixed(1) + " bar"
+    },
+  ],
+
+  outputs: [
+    { id: "bitterness", name: "Bitterness",       color: "#f97583", baseline: 0.10,
+      blurb: "Late-extraction compounds; rises monotonically with extraction." },
+    { id: "acidity",    name: "Acidity (brightness)", color: "#ffb86b", baseline: 0.15,
+      blurb: "Early-extraction compounds; peaks at moderate extraction, declines as bitterness rises." },
+    { id: "body",       name: "Body / mouthfeel",  color: "#b392f0", baseline: 0.05,
+      blurb: "Concentration of dissolved solids and oils; pressure and fineness build it." },
+    { id: "caffeine",   name: "Caffeine yield",    color: "#85e89d", baseline: 0.15,
+      blurb: "Extraction efficiency * dose; long brews and fine grinds extract most." },
+    { id: "clarity",    name: "Flavour clarity",   color: "#79b8ff", baseline: 0.55,
+      blurb: "How distinct individual flavour notes are; declines as everything else extracts." },
+  ],
+
+  effects: [
+    { input: "temp", output: "bitterness", weight:  0.55 },
+    { input: "temp", output: "acidity",    weight:  0.45, peak: 0.70 },
+    { input: "temp", output: "body",       weight:  0.15 },
+    { input: "temp", output: "caffeine",   weight:  0.35 },
+    { input: "temp", output: "clarity",    weight: -0.25 },
+
+    { input: "grind", output: "bitterness", weight: -0.50 },
+    { input: "grind", output: "acidity",    weight: -0.30, peak: 0.50 },
+    { input: "grind", output: "body",       weight: -0.30 },
+    { input: "grind", output: "caffeine",   weight: -0.40 },
+    { input: "grind", output: "clarity",    weight: +0.45 },
+
+    { input: "time", output: "bitterness", weight:  0.55 },
+    { input: "time", output: "acidity",    weight:  0.40, peak: 0.40 },
+    { input: "time", output: "body",       weight:  0.40, peak: 0.75 },
+    { input: "time", output: "caffeine",   weight:  0.55, peak: 0.85 },
+    { input: "time", output: "clarity",    weight: -0.35 },
+
+    { input: "pressure", output: "bitterness", weight:  0.30 },
+    { input: "pressure", output: "acidity",    weight:  0.20 },
+    { input: "pressure", output: "body",       weight:  0.55 },
+    { input: "pressure", output: "caffeine",   weight:  0.35 },
+    { input: "pressure", output: "clarity",    weight: -0.20 },
+  ],
+
+  presets: [
+    { key: "espresso",    name: "Espresso",    values: { temp: 0.85, grind: 0.05, time: 0.30, pressure: 1.00 } },
+    { key: "aeropress",   name: "AeroPress",   values: { temp: 0.75, grind: 0.40, time: 0.40, pressure: 0.40 } },
+    { key: "v60",         name: "V60",         values: { temp: 0.85, grind: 0.55, time: 0.50, pressure: 0.00 } },
+    { key: "frenchpress", name: "French press",values: { temp: 0.85, grind: 0.95, time: 0.55, pressure: 0.00 } },
+    { key: "coldbrew",    name: "Cold brew",   values: { temp: 0.05, grind: 0.85, time: 0.92, pressure: 0.00 } },
+  ],
+
+  // ===== German overrides (text only — keys, ids, weights, peaks unchanged) =====
+  de: {
+    meta: {
+      title: "/parameter-playground — die Dynamik eines Themengebiets spüren",
+      eyebrow: "Claude Code Skill — Demo",
+      h1: "/parameter-playground",
+      headerSub: "Ein Skill, der hilft, die <em>Dynamik</em> eines Themengebiets zu spüren — durch interaktives Spielen mit steuerbaren Inputs und Beobachten, wie sich Outcomes verschieben. Anwendungsbeispiel: <b>Kaffee-Extraktion</b> — vier Eingabe-Slider (Wassertemperatur, Mahlgrad, Zeit, Druck) treiben fünf Live-Outcome-Balken (Bitterkeit, Säure, Körper, Koffein, Klarheit).",
+      crossref: "Für die <em>Struktur</em> desselben Themengebiets — Achsen, Verteilungen, Bündel — siehe das Companion-Skill <a href='map'>/dimensional-map</a>.",
+      metaCallout: "<div class='meta-h'>Was du hier tun kannst</div><ul class='bullet-list'><li><b>4 Slider</b>: Wassertemperatur, Mahlgrad, Brühzeit, Druck. Zieh einen davon.</li><li><b>5 Outcome-Balken</b> aktualisieren live: Bitterkeit, Säure, Körper, Koffein-Ertrag, Aromaklarheit.</li><li><b>5 Voreinstellungen</b> setzen die Eingaben auf bekannte Methoden (Espresso, AeroPress, V60, French Press, Cold Brew). Klick zwischen ihnen, um die Bündelstruktur als Transformation zu <em>spüren</em>.</li><li><b>Versuch, das Bündel zu brechen</b>: hoher Druck mit grobem Mahlgrad, oder niedrige Temperatur mit kurzer Zeit. Kombinationen, die im Feld nicht auftauchen, zeigen <em>warum</em> — das Modell sagt eine sichtbar daneben liegende Tasse vorher.</li><li><b>Lehrgrade, nicht laborgrade</b>: Wirkungsrichtungen stimmen; Magnituden sind zu pädagogischen Zwecken über den Daumen gepeilt.</li></ul><div class='meta-why'><b>Companion-Artefakt</b> zur <a href='map'>Dimensionskarte</a>. Die Karte zeigt, <em>wo</em> Instanzen sitzen; das Playground zeigt, <em>warum</em> sie dort sitzen — indem es die Input → Outcome-Beziehungen interaktiv macht.</div>",
+      presetsSectionH: "Voreinstellung ausprobieren",
+      inputsSectionH: "Eingabevariablen — zum Erkunden ziehen",
+      outputsSectionH: "Vorhergesagte Ergebnisse",
+      presetsLabel: "Methode:",
+      resetLabel: "Zurücksetzen",
+      notesH: "Wie das funktioniert",
+      notes: "<p>Jeder Output ist eine <b>signierte gewichtete Summe</b> der Eingabe-Beiträge, mit optionalen <b>nicht-monotonen Peaks</b>: manche Ergebnisse steigen erst und fallen dann, wenn ihre treibende Eingabe wächst (Säure peakt bei moderater Temperatur und Zeit; Klarheit fällt, sobald irgendetwas die Extraktion treibt). Koeffizienten und Peaks stehen im DATA-Block oben im Quelltext.</p><p>Das ist <b>lehrgrade, nicht laborgrade</b> — gemeint ist, die Beziehungen <em>sichtbar</em> zu machen, nicht deine nächste Tasse vorherzusagen. Echte Extraktion hat hunderte Variablen, Nicht-Linearitäten auf jeder Ebene und bohnenspezifisches Verhalten. Das Playground ist zu Kaffee, was ein skizziertes ƒ(x,y) zur Strömungsmechanik ist: nützlich, abstrakt, im Detail falsch.</p><p><b>Sinn der Voreinstellungen:</b> Sie sind die Brühmethoden aus der Dimensionskarte, zurück in den Eingaberaum projiziert. Klick 'Espresso', dann 'Cold Brew' — beobachte, wie die Outputs umkippen. Versuch dann hohen Druck mit grobem Mahlgrad: sieh, warum diese Kombination im Feld nicht auftaucht (alles niedrig, wässriger Körper, keine Säure). Das Playground lässt dich <em>die Bündel brechen</em> — jede Kovariation der Karte taucht hier auf als 'warum einen Slider allein zu bewegen eine schlechtere Tasse ergibt als das Bündel zusammen zu verschieben'.</p>",
+      footer: "<b>Einschränkungen.</b> Koeffizienten sind illustrativ — die Richtungen stimmen (heißer ist bitterer, länger ist bitterer, usw.), aber die Magnituden sind zu pädagogischen Zwecken über den Daumen gepeilt. Die Peak-Werte (wo Säure aufhört zu steigen) sind reale Phänomene, aber die genaue Peak-Position variiert je nach Bohne, Wasserchemie und Geschmack. Behandle das als Werkzeug zur Intuitionsentwicklung, nicht als Rezept-Optimierer.",
+    },
+    inputs: [
+      { name: "Wassertemperatur", leftLabel: "Kalt (60°C)", rightLabel: "Kochend (100°C)",
+        blurb: "Höhere Temperatur = insgesamt schnellere Extraktion, aber jenseits von ~93°C beginnen bittere Verbindungen die süßen zu dominieren." },
+      { name: "Mahlgrad", leftLabel: "Talkum (sehr fein)", rightLabel: "Meersalz (sehr grob)",
+        blurb: "Feiner = mehr Oberfläche = mehr Extraktion pro Zeiteinheit. Espresso braucht Talkum; Cold Brew braucht grob.",
+        formatValue: (v) => {
+          const labels = ["Talkum", "Sehr fein", "Fein", "Mittel-fein", "Mittel", "Mittel-grob", "Grob", "Sehr grob"];
+          return labels[Math.min(labels.length - 1, Math.floor(v * labels.length))];
+        }
+      },
+      { name: "Brühzeit", leftLabel: "~15 Sekunden", rightLabel: "~24 Stunden",
+        blurb: "Logarithmisch — Espresso ~30s, V60 ~3min, French Press ~4min, Cold Brew ~16h. Spannt vier Größenordnungen." },
+      { name: "Brühdruck", leftLabel: "Atmosphärisch (1 bar)", rightLabel: "Espresso (9 bar)",
+        blurb: "Espressomaschinen liefern 9 bar; alles andere ist Schwerkraft oder Immersion bei atmosphärischem Druck." },
+    ],
+    outputs: [
+      { name: "Bitterkeit", blurb: "Spät extrahierte Verbindungen; steigt monoton mit der Extraktion." },
+      { name: "Säure (Helligkeit)", blurb: "Früh extrahierte Verbindungen; peakt bei moderater Extraktion, fällt mit steigender Bitterkeit." },
+      { name: "Körper / Mundgefühl", blurb: "Konzentration gelöster Feststoffe und Öle; Druck und Feinheit bauen ihn auf." },
+      { name: "Koffein-Ertrag", blurb: "Extraktionseffizienz × Dosis; lange Brühen und feiner Mahlgrad extrahieren am meisten." },
+      { name: "Aromaklarheit", blurb: "Wie deutlich einzelne Aromanoten sind; fällt, wenn alles andere extrahiert." },
+    ],
+    presets: [
+      { name: "Espresso" },
+      { name: "AeroPress" },
+      { name: "V60" },
+      { name: "French Press" },
+      { name: "Cold Brew" },
+    ],
+  },
+};
+
+// =============================================================================
+// === END DATA. Render code below — generic.                                 ===
+// =============================================================================
+
+function detectLang() {
+  let pref = null;
+  try { pref = (document.cookie.match(/(?:^|;\s*)dt_lang_pref=([^;]+)/) || [])[1]; } catch (e) {}
+  if (pref === "en" || pref === "de") return pref;
+  const langs = (navigator.languages || [navigator.language || ""]);
+  if (langs.some(l => /^de\b/i.test(l))) return "de";
+  return "en";
+}
+function setLangCookie(lang) {
+  try { document.cookie = "dt_lang_pref=" + lang + "; path=/; max-age=31536000; samesite=lax"; } catch (e) {}
+}
+
+function buildActive(lang) {
+  if (lang !== "de" || !PLAYGROUND.de) {
+    return {
+      meta: PLAYGROUND.meta,
+      inputs: PLAYGROUND.inputs,
+      outputs: PLAYGROUND.outputs,
+      presets: PLAYGROUND.presets,
+    };
+  }
+  const o = PLAYGROUND.de;
+  return {
+    meta: { ...PLAYGROUND.meta, ...(o.meta || {}) },
+    inputs: PLAYGROUND.inputs.map((inp, i) => ({ ...inp, ...((o.inputs && o.inputs[i]) || {}) })),
+    outputs: PLAYGROUND.outputs.map((out, i) => ({ ...out, ...((o.outputs && o.outputs[i]) || {}) })),
+    presets: PLAYGROUND.presets.map((p, i) => ({ ...p, ...((o.presets && o.presets[i]) || {}) })),
+  };
+}
+
+let currentLang = detectLang();
+let ACTIVE = buildActive(currentLang);
+
+const state = {};
+for (const inp of PLAYGROUND.inputs) state[inp.id] = inp.default ?? 0.5;
+
+function renderMeta() {
+  document.getElementById("page-title").textContent = ACTIVE.meta.title;
+  document.documentElement.lang = currentLang;
+  if (ACTIVE.meta.eyebrow) document.getElementById("eyebrow").textContent = ACTIVE.meta.eyebrow;
+  document.getElementById("h1").textContent = ACTIVE.meta.h1;
+  document.getElementById("header-sub").innerHTML = ACTIVE.meta.headerSub;
+  if (ACTIVE.meta.crossref) document.getElementById("crossref").innerHTML = ACTIVE.meta.crossref;
+  document.getElementById("meta").innerHTML = ACTIVE.meta.metaCallout;
+  document.getElementById("section-presets-h").textContent = ACTIVE.meta.presetsSectionH;
+  document.getElementById("section-inputs-h").textContent = ACTIVE.meta.inputsSectionH;
+  document.getElementById("section-outputs-h").textContent = ACTIVE.meta.outputsSectionH;
+  document.getElementById("notes").innerHTML = `<h3>${ACTIVE.meta.notesH}</h3>${ACTIVE.meta.notes}`;
+  document.getElementById("footer").innerHTML = ACTIVE.meta.footer;
+}
+
+function renderPresets() {
+  const root = document.getElementById("presets");
+  let html = `<span class="presets-label">${ACTIVE.meta.presetsLabel}</span>`;
+  for (let i = 0; i < ACTIVE.presets.length; i++) {
+    const canon = PLAYGROUND.presets[i];
+    const localized = ACTIVE.presets[i];
+    html += `<span class="preset" data-key="${canon.key}">${localized.name}</span>`;
+  }
+  html += `<span class="preset reset" data-key="__reset__">${ACTIVE.meta.resetLabel}</span>`;
+  root.innerHTML = html;
+
+  root.addEventListener("click", (e) => {
+    const el = e.target.closest(".preset");
+    if (!el) return;
+    const key = el.dataset.key;
+    if (key === "__reset__") {
+      for (const inp of PLAYGROUND.inputs) state[inp.id] = inp.default ?? 0.5;
+    } else {
+      const preset = PLAYGROUND.presets.find(p => p.key === key);
+      if (!preset) return;
+      for (const inp of PLAYGROUND.inputs) {
+        const v = preset.values[inp.id];
+        if (v !== undefined) state[inp.id] = v;
+      }
+    }
+    syncSliders();
+    document.querySelectorAll(".preset").forEach(p =>
+      p.classList.toggle("active", p.dataset.key === key && key !== "__reset__"));
+    recompute();
+  }, { once: false });
+}
+
+function renderInputs() {
+  const root = document.getElementById("inputs");
+  let html = "";
+  for (let i = 0; i < ACTIVE.inputs.length; i++) {
+    const inp = ACTIVE.inputs[i];
+    const canon = PLAYGROUND.inputs[i];
+    // formatValue: prefer localized override (for ordinal labels), fall back to canonical
+    const fmt = inp.formatValue || canon.formatValue;
+    html += `
+      <div class="input">
+        <div class="input-head">
+          <span class="input-name">${inp.name}</span>
+          <span class="input-value" id="valstr_${canon.id}">${fmt(state[canon.id])}</span>
+        </div>
+        <p class="input-blurb">${inp.blurb}</p>
+        <input type="range" id="inp_${canon.id}" min="0" max="1" step="0.01" value="${state[canon.id]}">
+        <div class="input-endpoints"><span>${inp.leftLabel}</span><span>${inp.rightLabel}</span></div>
+      </div>`;
+  }
+  root.innerHTML = html;
+
+  for (let i = 0; i < ACTIVE.inputs.length; i++) {
+    const inp = ACTIVE.inputs[i];
+    const canon = PLAYGROUND.inputs[i];
+    const fmt = inp.formatValue || canon.formatValue;
+    const slider = document.getElementById("inp_" + canon.id);
+    slider.addEventListener("input", () => {
+      state[canon.id] = parseFloat(slider.value);
+      document.getElementById("valstr_" + canon.id).textContent = fmt(state[canon.id]);
+      document.querySelectorAll(".preset.active").forEach(p => p.classList.remove("active"));
+      recompute();
+    });
+  }
+}
+
+function syncSliders() {
+  for (let i = 0; i < ACTIVE.inputs.length; i++) {
+    const inp = ACTIVE.inputs[i];
+    const canon = PLAYGROUND.inputs[i];
+    const fmt = inp.formatValue || canon.formatValue;
+    const slider = document.getElementById("inp_" + canon.id);
+    if (slider) {
+      slider.value = state[canon.id];
+      document.getElementById("valstr_" + canon.id).textContent = fmt(state[canon.id]);
+    }
+  }
+}
+
+function renderOutputs() {
+  const root = document.getElementById("outputs");
+  let html = "";
+  for (let i = 0; i < ACTIVE.outputs.length; i++) {
+    const out = ACTIVE.outputs[i];
+    const canon = PLAYGROUND.outputs[i];
+    html += `
+      <div class="output">
+        <div>
+          <div class="output-name"><span class="swatch" style="background:${canon.color}"></span>${out.name}</div>
+          <p class="output-blurb">${out.blurb}</p>
+        </div>
+        <div class="output-bar-bg">
+          <div class="output-bar-fill" id="bar_${canon.id}" style="width:0%; background:${canon.color}"></div>
+        </div>
+        <div class="output-value" id="val_${canon.id}">0</div>
+      </div>`;
+  }
+  root.innerHTML = html;
+}
+
+function recompute() {
+  for (const out of PLAYGROUND.outputs) {
+    let v = out.baseline ?? 0;
+    for (const eff of PLAYGROUND.effects) {
+      if (eff.output !== out.id) continue;
+      const x = state[eff.input];
+      if (x === undefined) continue;
+      let contribution;
+      if (typeof eff.peak === "number") {
+        if (x <= eff.peak) contribution = eff.weight * (eff.peak === 0 ? 1 : x / eff.peak);
+        else contribution = eff.weight * (1 - (x - eff.peak) / (1 - eff.peak));
+      } else {
+        contribution = eff.weight * x;
+      }
+      v += contribution;
+    }
+    v = Math.max(0, Math.min(1, v));
+    const bar = document.getElementById("bar_" + out.id);
+    const valEl = document.getElementById("val_" + out.id);
+    if (bar)   bar.style.width = (v * 100).toFixed(1) + "%";
+    if (valEl) valEl.textContent = Math.round(v * 100);
+  }
+}
+
+function syncLangPills() {
+  document.querySelectorAll(".lang-pill").forEach(el => {
+    el.classList.toggle("active", el.dataset.lang === currentLang);
+  });
+}
+
+function bindLangToggle() {
+  document.querySelectorAll(".lang-pill").forEach(el => {
+    el.addEventListener("click", () => {
+      const lang = el.dataset.lang;
+      if (lang !== "en" && lang !== "de") return;
+      if (lang === currentLang) return;
+      currentLang = lang;
+      setLangCookie(lang);
+      renderAll();
+    });
+  });
+}
+
+function renderAll() {
+  ACTIVE = buildActive(currentLang);
+  renderMeta();
+  renderPresets();
+  renderInputs();
+  renderOutputs();
+  recompute();
+  syncLangPills();
+}
+
+bindLangToggle();
+renderAll();
+
+</script>
+</body>
+</html>
