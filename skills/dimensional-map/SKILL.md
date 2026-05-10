@@ -133,6 +133,7 @@ The HTML template consumes this exact shape. Produce it as the deliverable from 
       "short": "Pressure",
       "kind": "Mechanism",
       "blurb": "What drives water through the grounds — gravity, immersion, or pump pressure.",
+      "tagline": "gravity/immersion to 9-bar espresso",
       "leftPole": {
         "label": "Atmospheric (gravity / immersion)",
         "bundle": ["gravity or immersion drives extraction", "coarse-to-medium grind",
@@ -165,6 +166,22 @@ The HTML template consumes this exact shape. Produce it as the deliverable from 
   ]
 }
 ```
+
+## Radar axis legend (auto-rendered)
+
+The radar chart is always accompanied by a compact axis legend inside the same panel — a one-line bullet per axis showing the **full name with the chart's short-label bolded inside it**, followed by a short description. SVG axis labels on the chart get native hover tooltips. This is automatic; no extra wiring is needed.
+
+The legend uses, per axis:
+- The full `name` (with the `short` substring bolded inside, so the eye snaps from chart label to legend entry).
+- The new optional `tagline` field — a **one-line** description. **Always populate `tagline`** when authoring a map; the auto-fallback (first sentence of `blurb`) is for backward compatibility only and tends to be too long.
+
+Optional `meta` overrides (rarely needed — sensible EN/DE defaults are provided):
+- `meta.axisLegendH` — heading text (default: `"Axes"` / `"Achsen"`).
+- `meta.axisLegendHint` — hint after the heading (default: `"hover labels on the chart for full description"` / `"Labels im Chart anhovern für volle Beschreibung"`).
+
+Constraints:
+- Keep `tagline` **strictly one line at typical viewport widths** — the legend uses `text-overflow: ellipsis` and will truncate longer entries. Target ≤55 characters when possible. The chart's native hover tooltip carries the full text as a safety net, but the legend itself should be readable without hover.
+- `short` should appear as a (case-insensitive) substring of `name` so it can be highlighted in-place. If it doesn't (rare), the renderer falls back to `**short** · name`.
 
 ## Bilingual mode (optional)
 

@@ -174,8 +174,9 @@
   .radar-section {
     background: var(--panel); border: 1px solid var(--rule); border-radius: 10px;
     padding: 18px 22px; margin: 22px 0 6px;
-    display: flex; gap: 28px; align-items: center;
+    display: flex; flex-direction: column; gap: 14px;
   }
+  .radar-section .radar-top { display: flex; gap: 28px; align-items: center; }
   .radar-section .radar-svg-wrap { flex: 0 0 auto; width: 380px; height: 360px; }
   .radar-section .radar-svg-wrap svg { width: 100%; height: 100%; display: block; }
   .radar-section .radar-blurb { flex: 1; min-width: 0; }
@@ -183,12 +184,13 @@
   .radar-section h2 .kind { font-size: 11px; font-weight: 500; color: var(--ink-dim); margin-left: 8px; text-transform: uppercase; letter-spacing: 0.07em; }
   .radar-section p { font-size: 13px; color: var(--ink-mute); margin: 0 0 10px; line-height: 1.55; }
   .radar-section p b { color: var(--ink); font-weight: 600; }
-  .radar-section ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; color: var(--ink-mute); }
-  .radar-section ul li { margin: 3px 0; } .radar-section ul li b { color: var(--ink); font-weight: 600; }
+  .radar-blurb ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; color: var(--ink-mute); }
+  .radar-blurb ul li { margin: 3px 0; } .radar-blurb ul li b { color: var(--ink); font-weight: 600; }
 
   .radar-grid { fill: none; stroke: var(--rule); stroke-width: 1; }
   .radar-axis-line { stroke: var(--rule); stroke-width: 1; opacity: 0.65; }
-  .radar-axis-label { fill: var(--ink-dim); font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; }
+  .radar-axis-label { fill: var(--ink-dim); font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; cursor: help; }
+  .radar-axis-label:hover { fill: var(--ink); }
   .radar-tick-label { fill: var(--ink-dim); font-size: 9px; opacity: 0.55; }
   .radar-poly { fill-opacity: 0.12; stroke-width: 1.5; transition: fill-opacity 120ms; cursor: default; }
   .radar-poly:hover { fill-opacity: 0.32; }
@@ -196,9 +198,37 @@
   .radar-poly.target:hover { fill-opacity: 0.38; }
   .radar-poly[data-hidden="1"] { display: none; }
 
+  /* Compact axis legend below the radar — bold short-name matches the chart label, one line per axis. */
+  .radar-axis-legend {
+    border-top: 1px solid var(--rule-2);
+    padding-top: 12px;
+  }
+  .radar-axis-legend .legend-h {
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.09em;
+    color: var(--ink-dim); font-weight: 600; margin: 0 0 8px;
+  }
+  .radar-axis-legend ul {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 3px 22px;
+    margin: 0; padding: 0; list-style: none;
+  }
+  .radar-axis-legend li {
+    font-size: 12px; color: var(--ink-mute); line-height: 1.55;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    padding-left: 12px; position: relative;
+  }
+  .radar-axis-legend li::before {
+    content: ""; position: absolute; left: 2px; top: 8px;
+    width: 4px; height: 4px; border-radius: 50%; background: var(--ink-dim);
+  }
+  .radar-axis-legend li b { color: var(--ink); font-weight: 600; }
+  .radar-axis-legend li .axis-fullname { color: var(--ink-mute); }
+  .radar-axis-legend li .axis-tagline { color: var(--ink-dim); }
+
   @media (max-width: 880px) {
-    .radar-section { flex-direction: column; align-items: stretch; gap: 14px; }
+    .radar-section .radar-top { flex-direction: column; align-items: stretch; gap: 14px; }
     .radar-section .radar-svg-wrap { width: 100%; max-width: 380px; height: auto; aspect-ratio: 380 / 360; margin: 0 auto; }
+    .radar-axis-legend ul { grid-template-columns: 1fr; }
   }
 
   /* Per-axis scales */
@@ -323,14 +353,20 @@
 <div class="legend" id="legend"></div>
 
 <section class="radar-section">
-  <div class="radar-svg-wrap">
-    <svg id="radar-svg" viewBox="0 0 380 360" role="img" aria-label="Radar chart"></svg>
+  <div class="radar-top">
+    <div class="radar-svg-wrap">
+      <svg id="radar-svg" viewBox="0 0 380 360" role="img" aria-label="Radar chart"></svg>
+    </div>
+    <div class="radar-blurb">
+      <h2 id="radar-h"></h2>
+      <p id="radar-p1"></p>
+      <p><b id="radar-look-h"></b></p>
+      <ul id="radar-look-list"></ul>
+    </div>
   </div>
-  <div class="radar-blurb">
-    <h2 id="radar-h"></h2>
-    <p id="radar-p1"></p>
-    <p><b id="radar-look-h"></b></p>
-    <ul id="radar-look-list"></ul>
+  <div class="radar-axis-legend">
+    <div class="legend-h" id="radar-axis-legend-h"></div>
+    <ul id="radar-axis-legend-list"></ul>
   </div>
 </section>
 
@@ -388,6 +424,7 @@ const DATA = {
     {
       id: "pressure", name: "Brewing pressure", short: "Pressure", kind: "Mechanism",
       blurb: "What drives water through the grounds — gravity, immersion, or pump pressure. The most consequential single variable in the field; almost everything else clusters around the answer.",
+      tagline: "gravity/immersion to 9-bar espresso",
       leftPole: {
         label: "Atmospheric (gravity / immersion)",
         bundle: ["gravity or immersion drives extraction", "coarse-to-medium grind", "forgiving to user technique", "simple equipment", "long contact tolerated"],
@@ -408,6 +445,7 @@ const DATA = {
     {
       id: "time", name: "Extraction time", short: "Time", kind: "Kinetics",
       blurb: "How long water and grounds are in contact. Spans four orders of magnitude across the field — from ~30 seconds to ~24 hours.",
+      tagline: "~30 seconds to ~24 hours",
       leftPole: {
         label: "Seconds (~30s)",
         bundle: ["aggressive extraction lever (pressure or fineness)", "concentrated yield", "narrow under/over-extraction window", "technique-sensitive", "high crema and oils"],
@@ -428,6 +466,7 @@ const DATA = {
     {
       id: "grind", name: "Grind size", short: "Grind", kind: "Geometry",
       blurb: "How fine the coffee is ground. Geometry determines surface area and bed permeability — and therefore both extraction rate and the brew method's flow physics.",
+      tagline: "talcum-fine to sea-salt-coarse",
       leftPole: {
         label: "Very fine (talcum)",
         bundle: ["high-pressure brew", "short contact time", "expensive flat-burr grinder", "channeling risk", "no espresso without it"],
@@ -448,6 +487,7 @@ const DATA = {
     {
       id: "filtration", name: "Filtration", short: "Filtration", kind: "Cup composition",
       blurb: "What the brew passes through on its way to the cup. Determines what's in the cup beyond water and dissolved solids: oils, fines, sediment.",
+      tagline: "immersion/metal mesh to paper-filtered",
       leftPole: {
         label: "Immersion / metal mesh",
         bundle: ["oils and fines pass through", "heavier mouthfeel", "sediment in cup", "simpler hardware", "no single-use waste"],
@@ -468,6 +508,7 @@ const DATA = {
     {
       id: "cost", name: "Equipment cost", short: "Cost", kind: "Capital",
       blurb: "Initial investment to brew the method properly. Spans nearly two orders of magnitude — from $20 to $3000+. The cheap end and expensive end have very different cultures.",
+      tagline: "$10-50 to $1000+",
       leftPole: {
         label: "Cheap ($10-50)",
         bundle: ["hand grinder fine", "zero electricity", "portable / travel-friendly", "no calibration", "forgiving recipes"],
@@ -488,6 +529,7 @@ const DATA = {
     {
       id: "ritual", name: "Ritual complexity", short: "Ritual", kind: "User effort",
       blurb: "How much active control the user must exert during brewing — from walk-away passive to full barista craft. Spans the whole 'is this a chore or a hobby?' spectrum.",
+      tagline: "set-and-forget to multi-step craft",
       leftPole: {
         label: "Set-and-forget",
         bundle: ["minimal user action", "no timing windows", "forgiving of variation", "scales easily to many cups", "reproducible by anyone"],
@@ -564,6 +606,7 @@ const DATA = {
       {
         name: "Brühdruck", short: "Druck", kind: "Mechanismus",
         blurb: "Was treibt das Wasser durch das Kaffeemehl — Schwerkraft, Immersion oder Pumpendruck. Die folgenreichste einzelne Variable im Feld; fast alles andere ordnet sich um die Antwort.",
+        tagline: "Schwerkraft/Immersion bis 9-bar Espresso",
         leftPole: {
           label: "Atmosphärisch (Schwerkraft / Immersion)",
           bundle: ["Schwerkraft oder Immersion treibt die Extraktion", "grober bis mittlerer Mahlgrad", "verzeihend gegenüber Technikfehlern", "einfache Ausrüstung", "lange Kontaktzeit verträglich"],
@@ -581,6 +624,7 @@ const DATA = {
       {
         name: "Extraktionszeit", short: "Zeit", kind: "Kinetik",
         blurb: "Wie lange Wasser und Kaffeemehl in Kontakt sind. Spannt vier Größenordnungen über das Feld — von ~30 Sekunden bis ~24 Stunden.",
+        tagline: "~30 Sekunden bis ~24 Stunden",
         leftPole: {
           label: "Sekunden (~30s)",
           bundle: ["aggressiver Extraktionshebel (Druck oder Feinheit)", "konzentrierter Ertrag", "schmales Unter-/Überextraktions-Fenster", "techniksensitiv", "viel Crema und Öle"],
@@ -598,6 +642,7 @@ const DATA = {
       {
         name: "Mahlgrad", short: "Mahlgrad", kind: "Geometrie",
         blurb: "Wie fein der Kaffee gemahlen wird. Geometrie bestimmt Oberfläche und Bett-Permeabilität — und damit sowohl Extraktionsrate als auch Strömungsphysik der Brühmethode.",
+        tagline: "talkumfein bis grobes Meersalz",
         leftPole: {
           label: "Sehr fein (Talkum)",
           bundle: ["Hochdruck-Brühen", "kurze Kontaktzeit", "teure Flachscheiben-Mühle", "Channeling-Risiko", "ohne ihn kein Espresso"],
@@ -615,6 +660,7 @@ const DATA = {
       {
         name: "Filtration", short: "Filtration", kind: "Tassenzusammensetzung",
         blurb: "Was der Brühvorgang auf dem Weg in die Tasse passiert. Bestimmt, was außer Wasser und gelösten Feststoffen in der Tasse landet: Öle, Feinanteile, Sediment.",
+        tagline: "Immersion/Metallsieb bis Papierfilter",
         leftPole: {
           label: "Immersion / Metallsieb",
           bundle: ["Öle und Feinanteile gehen durch", "schwereres Mundgefühl", "Sediment in der Tasse", "einfachere Hardware", "kein Einwegmüll"],
@@ -632,6 +678,7 @@ const DATA = {
       {
         name: "Ausstattungskosten", short: "Kosten", kind: "Kapital",
         blurb: "Anfangsinvestition, um die Methode richtig zu brühen. Spannt fast zwei Größenordnungen — von $20 bis $3000+. Das günstige und das teure Ende haben sehr unterschiedliche Kulturen.",
+        tagline: "10-50 $ bis 1000 $+",
         leftPole: {
           label: "Günstig ($10-50)",
           bundle: ["Handmühle reicht", "kein Strom", "tragbar / reisefreundlich", "keine Kalibrierung", "verzeihende Rezepte"],
@@ -649,6 +696,7 @@ const DATA = {
       {
         name: "Ritual-Komplexität", short: "Ritual", kind: "Benutzeraufwand",
         blurb: "Wie viel aktive Kontrolle der Benutzer während des Brühens ausüben muss — von 'einschalten und weggehen' bis zur vollen Barista-Handwerkskunst. Spannt das gesamte 'Pflichtaufgabe oder Hobby?'-Spektrum.",
+        tagline: "hinstellen-und-vergessen bis mehrstufiges Handwerk",
         leftPole: {
           label: "Einschalten-und-vergessen",
           bundle: ["minimaler Benutzereingriff", "keine Zeitfenster", "verzeihend bei Varianz", "skaliert leicht auf viele Tassen", "von jedem reproduzierbar"],
@@ -762,6 +810,43 @@ function renderHeaderAndMeta() {
   document.getElementById("radar-look-h").textContent = ACTIVE.meta.radarLookH;
   document.getElementById("radar-look-list").innerHTML =
     ACTIVE.meta.radarLook.map(s => `<li>${s}</li>`).join("");
+}
+
+// --- Axis-legend helpers ----------------------------------------------------
+// Short one-line description for an axis. Uses `axis.tagline` if provided,
+// otherwise falls back to the first sentence of `axis.blurb`.
+function axisTagline(ax) {
+  if (ax.tagline) return ax.tagline;
+  const blurb = (ax.blurb || "").replace(/<[^>]+>/g, "");
+  const m = blurb.match(/^[^.!?]+[.!?]/);
+  return (m ? m[0] : blurb).trim();
+}
+function axisTaglinePlain(ax) { return axisTagline(ax).replace(/<[^>]+>/g, ""); }
+function escSvg(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+// Render the full axis name with the chart's short-label bolded inside it,
+// so the eye snaps from the radar label to the legend entry instantly.
+function fullNameWithBoldShort(name, short) {
+  if (!name) return "";
+  if (!short) return name;
+  const re = new RegExp("(" + short.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")", "i");
+  if (re.test(name)) return name.replace(re, "<b>$1</b>");
+  return `<b>${short}</b> · ${name}`;
+}
+function renderAxisLegend() {
+  const heading = ACTIVE.meta.axisLegendH || (currentLang === "de" ? "Achsen" : "Axes");
+  const hint = ACTIVE.meta.axisLegendHint ||
+    (currentLang === "de" ? "Labels im Chart anhovern für volle Beschreibung"
+                          : "hover labels on the chart for full description");
+  document.getElementById("radar-axis-legend-h").innerHTML =
+    `${heading} <span style="font-weight:400;letter-spacing:0;text-transform:none;color:var(--ink-dim);font-size:11px;margin-left:8px;">— ${hint}</span>`;
+  const list = document.getElementById("radar-axis-legend-list");
+  list.innerHTML = ACTIVE.axes.map(ax => {
+    const tag = axisTagline(ax);
+    const tipPlain = `${ax.name}${axisTaglinePlain(ax) ? " — " + axisTaglinePlain(ax) : ""}`;
+    return `<li title="${tipPlain.replace(/"/g, "&quot;")}">${fullNameWithBoldShort(ax.name, ax.short)} — <span class="axis-tagline">${tag}</span></li>`;
+  }).join("");
 }
 
 function renderLegend() {
@@ -893,7 +978,9 @@ function renderRadar() {
     let baseline = "middle";
     if (lbl.y > RADAR_CY + 4) baseline = "hanging";
     else if (lbl.y < RADAR_CY - 4) baseline = "auto";
-    html += `<text class="radar-axis-label" x="${lbl.x.toFixed(1)}" y="${lbl.y.toFixed(1)}" text-anchor="${anchor}" dominant-baseline="${baseline}">${ACTIVE.axes[i].short}</text>`;
+    const ax_i = ACTIVE.axes[i];
+    const tipPlain = `${ax_i.name}${axisTaglinePlain(ax_i) ? " — " + axisTaglinePlain(ax_i) : ""}`;
+    html += `<text class="radar-axis-label" x="${lbl.x.toFixed(1)}" y="${lbl.y.toFixed(1)}" text-anchor="${anchor}" dominant-baseline="${baseline}">${escSvg(ax_i.short)}<title>${escSvg(tipPlain)}</title></text>`;
   }
   const t1 = radarPoint(0, 0.5, N);
   html += `<text class="radar-tick-label" x="${(t1.x + 4).toFixed(1)}" y="${t1.y.toFixed(1)}" dominant-baseline="middle">0.5</text>`;
@@ -952,6 +1039,7 @@ function renderAll() {
   renderLegend();
   renderAxes();
   renderRadar();
+  renderAxisLegend();
   renderCovar();
   syncLangPills();
   bindPills();  // pills are re-rendered each time, so we re-bind
