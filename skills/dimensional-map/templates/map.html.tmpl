@@ -37,11 +37,18 @@
   }
   header { margin-bottom: 10px; }
   header .skill-tag {
-    display: inline-block;
+    display: inline-flex; align-items: center; gap: 4px;
     font-size: 11px; text-transform: uppercase; letter-spacing: 0.10em;
     color: var(--accent); border: 1px solid rgba(121,184,255,0.3);
-    padding: 3px 10px; border-radius: 999px;
+    padding: 4px 12px; border-radius: 999px;
     margin-bottom: 12px; font-weight: 600;
+    text-decoration: none;
+    transition: background-color 120ms, border-color 120ms, color 120ms;
+  }
+  header a.skill-tag:hover {
+    background-color: rgba(121,184,255,0.10);
+    border-color: rgba(121,184,255,0.55);
+    color: var(--ink);
   }
   header h1 {
     font-size: 30px; margin: 0 0 8px; letter-spacing: -0.005em;
@@ -284,7 +291,7 @@
 </div>
 
 <header>
-  <span class="skill-tag" id="eyebrow"></span>
+  <a class="skill-tag" id="eyebrow" href="/" title="Demo overview"></a>
   <h1 id="h1"></h1>
   <p class="sub" id="header-sub"></p>
   <p class="crossref" id="crossref"></p>
@@ -343,7 +350,7 @@ const DATA = {
     whyBundledLabel: "Why bundled:",
     targetLabel: "Target:",
     exemplarLabel: "e.g.",
-    footer: "<b>Caveats.</b> Positions are coarse — coffee brewing has many sub-variants ('pour-over' covers V60, Chemex, Kalita Wave, all subtly different). Distribution shading is illustrative, not measured. Confidence marks: <code>*</code> well-established, <code>~</code> estimated, <code>?</code> guess. Endpoint bundles describe what tends to <em>cluster</em> at each pole, not iron laws — exceptions exist (e.g., AeroPress pressurises lightly without demanding fine grind), and those exceptions are usually worth understanding rather than treated as map flaws.",
+    footer: "<b>Caveats.</b> Positions are coarse — coffee brewing has many sub-variants ('pour-over' covers V60, Chemex, Kalita Wave, all subtly different). Distribution shading is illustrative, not measured. Confidence marks: <code>*</code> well-established, <code>~</code> estimated, <code>?</code> guess. Endpoint bundles describe what tends to <em>cluster</em> at each pole, not iron laws — exceptions exist (e.g., AeroPress pressurises lightly without demanding fine grind), and those exceptions are usually worth understanding rather than treated as map flaws.<br><br><b>Source:</b> <a href='https://github.com/ThisIsZeitgeist/dimensional-map' style='color:var(--accent);'>github.com/ThisIsZeitgeist/dimensional-map</a> — MIT licensed.",
   },
 
   models: [
@@ -521,7 +528,7 @@ const DATA = {
       whyBundledLabel: "Warum gebündelt:",
       targetLabel: "Target:",
       exemplarLabel: "z.B.",
-      footer: "<b>Einschränkungen.</b> Positionen sind grob — Kaffeezubereitung hat viele Untervarianten ('Pour-over' deckt V60, Chemex, Kalita Wave, alle leicht unterschiedlich). Verteilungs-Schattierung ist illustrativ, nicht gemessen. Confidence-Marken: <code>*</code> gut belegt, <code>~</code> geschätzt, <code>?</code> vermutet. Endpunkt-Bündel beschreiben, was an jedem Pol clustert, keine eisernen Gesetze — Ausnahmen existieren (z.B. AeroPress drückt leicht, ohne feinen Mahlgrad zu verlangen), und solche Ausnahmen sind in der Regel verstehenswert, nicht als Karten-Fehler zu behandeln.",
+      footer: "<b>Einschränkungen.</b> Positionen sind grob — Kaffeezubereitung hat viele Untervarianten ('Pour-over' deckt V60, Chemex, Kalita Wave, alle leicht unterschiedlich). Verteilungs-Schattierung ist illustrativ, nicht gemessen. Confidence-Marken: <code>*</code> gut belegt, <code>~</code> geschätzt, <code>?</code> vermutet. Endpunkt-Bündel beschreiben, was an jedem Pol clustert, keine eisernen Gesetze — Ausnahmen existieren (z.B. AeroPress drückt leicht, ohne feinen Mahlgrad zu verlangen), und solche Ausnahmen sind in der Regel verstehenswert, nicht als Karten-Fehler zu behandeln.<br><br><b>Quelle:</b> <a href='https://github.com/ThisIsZeitgeist/dimensional-map' style='color:var(--accent);'>github.com/ThisIsZeitgeist/dimensional-map</a> — MIT-Lizenz.",
     },
     models: [
       { name: "Espresso",     full: "Espresso (9-bar-Maschine)" },
@@ -720,7 +727,7 @@ DATA.models.forEach(m => { if (m.isTarget) visible.add(m.key); });
 function renderHeaderAndMeta() {
   document.getElementById("page-title").textContent = ACTIVE.meta.title;
   document.documentElement.lang = currentLang;
-  if (ACTIVE.meta.eyebrow) document.getElementById("eyebrow").textContent = ACTIVE.meta.eyebrow;
+  if (ACTIVE.meta.eyebrow) document.getElementById("eyebrow").innerHTML = "← " + ACTIVE.meta.eyebrow;
   document.getElementById("h1").textContent = ACTIVE.meta.h1;
   document.getElementById("header-sub").innerHTML = ACTIVE.meta.headerSub;
   if (ACTIVE.meta.crossref) document.getElementById("crossref").innerHTML = ACTIVE.meta.crossref;

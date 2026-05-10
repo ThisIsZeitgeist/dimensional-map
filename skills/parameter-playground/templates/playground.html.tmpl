@@ -34,11 +34,18 @@
   }
   header { margin-bottom: 10px; }
   header .skill-tag {
-    display: inline-block;
+    display: inline-flex; align-items: center; gap: 4px;
     font-size: 11px; text-transform: uppercase; letter-spacing: 0.10em;
     color: var(--accent-2); border: 1px solid rgba(255,184,107,0.3);
-    padding: 3px 10px; border-radius: 999px;
+    padding: 4px 12px; border-radius: 999px;
     margin-bottom: 12px; font-weight: 600;
+    text-decoration: none;
+    transition: background-color 120ms, border-color 120ms, color 120ms;
+  }
+  header a.skill-tag:hover {
+    background-color: rgba(255,184,107,0.10);
+    border-color: rgba(255,184,107,0.55);
+    color: var(--ink);
   }
   header h1 {
     font-size: 30px; margin: 0 0 8px; letter-spacing: -0.005em;
@@ -201,7 +208,7 @@
 </div>
 
 <header>
-  <span class="skill-tag" id="eyebrow"></span>
+  <a class="skill-tag" id="eyebrow" href="/" title="Demo overview"></a>
   <h1 id="h1"></h1>
   <p class="sub" id="header-sub"></p>
   <p class="crossref" id="crossref"></p>
@@ -246,7 +253,7 @@ const PLAYGROUND = {
     resetLabel: "Reset",
     notesH: "How this works",
     notes: "<p>Each output is a <b>signed weighted sum</b> of input contributions, with optional <b>non-monotonic peaks</b>: some outcomes rise then fall as their driving input grows (acidity peaks at moderate temperature and time; clarity declines as anything that drives extraction goes up). Coefficients and peaks are listed in the DATA block at the top of the source.</p><p>This is <b>teaching-grade, not lab-grade</b> — it's meant to make the relationships <em>visible</em>, not predict your next cup. Real extraction has hundreds of variables, non-linearities at every level, and bean-specific behaviour. The playground is to coffee what a sketched ƒ(x,y) is to fluid dynamics: useful, abstract, wrong in the details.</p><p><b>The point of presets:</b> they're the brewing methods from the dimensional map, projected back into input space. Click 'Espresso', then 'Cold brew' — watch the outputs flip. Then try high pressure with coarse grind: see why that combination doesn't show up in the field (low everything, watery body, no acidity). The playground lets you <em>break the bundles</em> — every covariation in the map shows up here as 'why moving one slider alone gives a worse cup than moving the bundle together'.</p>",
-    footer: "<b>Caveats.</b> Coefficients are illustrative — the directions are right (hotter is more bitter, longer is more bitter, etc.) but magnitudes are eyeballed for pedagogy. The peak inputs (where acidity stops rising) are real phenomena but the exact peak position varies by bean, water chemistry, and palate. Treat this as a way to develop intuition, not as a recipe optimiser.",
+    footer: "<b>Caveats.</b> Coefficients are illustrative — the directions are right (hotter is more bitter, longer is more bitter, etc.) but magnitudes are eyeballed for pedagogy. The peak inputs (where acidity stops rising) are real phenomena but the exact peak position varies by bean, water chemistry, and palate. Treat this as a way to develop intuition, not as a recipe optimiser.<br><br><b>Source:</b> <a href='https://github.com/ThisIsZeitgeist/dimensional-map' style='color:var(--accent-2);'>github.com/ThisIsZeitgeist/dimensional-map</a> — MIT licensed.",
   },
 
   inputs: [
@@ -351,7 +358,7 @@ const PLAYGROUND = {
       resetLabel: "Zurücksetzen",
       notesH: "Wie das funktioniert",
       notes: "<p>Jeder Output ist eine <b>signierte gewichtete Summe</b> der Eingabe-Beiträge, mit optionalen <b>nicht-monotonen Peaks</b>: manche Ergebnisse steigen erst und fallen dann, wenn ihre treibende Eingabe wächst (Säure peakt bei moderater Temperatur und Zeit; Klarheit fällt, sobald irgendetwas die Extraktion treibt). Koeffizienten und Peaks stehen im DATA-Block oben im Quelltext.</p><p>Das ist <b>lehrgrade, nicht laborgrade</b> — gemeint ist, die Beziehungen <em>sichtbar</em> zu machen, nicht deine nächste Tasse vorherzusagen. Echte Extraktion hat hunderte Variablen, Nicht-Linearitäten auf jeder Ebene und bohnenspezifisches Verhalten. Das Playground ist zu Kaffee, was ein skizziertes ƒ(x,y) zur Strömungsmechanik ist: nützlich, abstrakt, im Detail falsch.</p><p><b>Sinn der Voreinstellungen:</b> Sie sind die Brühmethoden aus der Dimensionskarte, zurück in den Eingaberaum projiziert. Klick 'Espresso', dann 'Cold Brew' — beobachte, wie die Outputs umkippen. Versuch dann hohen Druck mit grobem Mahlgrad: sieh, warum diese Kombination im Feld nicht auftaucht (alles niedrig, wässriger Körper, keine Säure). Das Playground lässt dich <em>die Bündel brechen</em> — jede Kovariation der Karte taucht hier auf als 'warum einen Slider allein zu bewegen eine schlechtere Tasse ergibt als das Bündel zusammen zu verschieben'.</p>",
-      footer: "<b>Einschränkungen.</b> Koeffizienten sind illustrativ — die Richtungen stimmen (heißer ist bitterer, länger ist bitterer, usw.), aber die Magnituden sind zu pädagogischen Zwecken über den Daumen gepeilt. Die Peak-Werte (wo Säure aufhört zu steigen) sind reale Phänomene, aber die genaue Peak-Position variiert je nach Bohne, Wasserchemie und Geschmack. Behandle das als Werkzeug zur Intuitionsentwicklung, nicht als Rezept-Optimierer.",
+      footer: "<b>Einschränkungen.</b> Koeffizienten sind illustrativ — die Richtungen stimmen (heißer ist bitterer, länger ist bitterer, usw.), aber die Magnituden sind zu pädagogischen Zwecken über den Daumen gepeilt. Die Peak-Werte (wo Säure aufhört zu steigen) sind reale Phänomene, aber die genaue Peak-Position variiert je nach Bohne, Wasserchemie und Geschmack. Behandle das als Werkzeug zur Intuitionsentwicklung, nicht als Rezept-Optimierer.<br><br><b>Quelle:</b> <a href='https://github.com/ThisIsZeitgeist/dimensional-map' style='color:var(--accent-2);'>github.com/ThisIsZeitgeist/dimensional-map</a> — MIT-Lizenz.",
     },
     inputs: [
       { name: "Wassertemperatur", leftLabel: "Kalt (60°C)", rightLabel: "Kochend (100°C)",
@@ -428,7 +435,7 @@ for (const inp of PLAYGROUND.inputs) state[inp.id] = inp.default ?? 0.5;
 function renderMeta() {
   document.getElementById("page-title").textContent = ACTIVE.meta.title;
   document.documentElement.lang = currentLang;
-  if (ACTIVE.meta.eyebrow) document.getElementById("eyebrow").textContent = ACTIVE.meta.eyebrow;
+  if (ACTIVE.meta.eyebrow) document.getElementById("eyebrow").innerHTML = "← " + ACTIVE.meta.eyebrow;
   document.getElementById("h1").textContent = ACTIVE.meta.h1;
   document.getElementById("header-sub").innerHTML = ACTIVE.meta.headerSub;
   if (ACTIVE.meta.crossref) document.getElementById("crossref").innerHTML = ACTIVE.meta.crossref;
