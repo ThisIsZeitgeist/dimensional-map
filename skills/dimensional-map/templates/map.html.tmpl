@@ -177,8 +177,8 @@
     display: flex; flex-direction: column; gap: 14px;
   }
   .radar-section .radar-top { display: flex; gap: 28px; align-items: center; }
-  .radar-section .radar-svg-wrap { flex: 0 0 auto; width: 380px; height: 360px; }
-  .radar-section .radar-svg-wrap svg { width: 100%; height: 100%; display: block; }
+  .radar-section .radar-svg-wrap { flex: 0 0 auto; width: 420px; height: 380px; position: relative; }
+  .radar-section .radar-svg-wrap svg { width: 100%; height: 100%; display: block; overflow: visible; }
   .radar-section .radar-blurb { flex: 1; min-width: 0; }
   .radar-section h2 { margin: 0 0 6px; font-size: 17px; letter-spacing: -0.005em; }
   .radar-section h2 .kind { font-size: 11px; font-weight: 500; color: var(--ink-dim); margin-left: 8px; text-transform: uppercase; letter-spacing: 0.07em; }
@@ -208,14 +208,16 @@
     color: var(--ink-dim); font-weight: 600; margin: 0 0 8px;
   }
   .radar-axis-legend ul {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 3px 22px;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+    gap: 6px 28px;
     margin: 0; padding: 0; list-style: none;
   }
   .radar-axis-legend li {
-    font-size: 12px; color: var(--ink-mute); line-height: 1.55;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-size: 12px; color: var(--ink-mute); line-height: 1.5;
     padding-left: 12px; position: relative;
+    /* Allow wrapping; clamp to 2 lines as a safety net for very long taglines */
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden;
   }
   .radar-axis-legend li::before {
     content: ""; position: absolute; left: 2px; top: 8px;
@@ -225,9 +227,24 @@
   .radar-axis-legend li .axis-fullname { color: var(--ink-mute); }
   .radar-axis-legend li .axis-tagline { color: var(--ink-dim); }
 
+  /* Instant custom tooltip for chart axis labels (no native-title delay) */
+  .chart-tooltip {
+    position: absolute; pointer-events: none; z-index: 50;
+    background: var(--panel-2); border: 1px solid var(--rule);
+    border-radius: 6px; padding: 7px 10px;
+    font-size: 11.5px; line-height: 1.45; color: var(--ink);
+    max-width: 280px; box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+    opacity: 0; transform: translateY(2px);
+    transition: opacity 80ms, transform 80ms;
+    display: none;
+  }
+  .chart-tooltip[data-on="1"] { opacity: 1; transform: translateY(0); display: block; }
+  .chart-tooltip b { color: var(--ink); font-weight: 600; }
+  .chart-tooltip .tip-tagline { display: block; color: var(--ink-mute); margin-top: 3px; font-size: 11px; }
+
   @media (max-width: 880px) {
     .radar-section .radar-top { flex-direction: column; align-items: stretch; gap: 14px; }
-    .radar-section .radar-svg-wrap { width: 100%; max-width: 380px; height: auto; aspect-ratio: 380 / 360; margin: 0 auto; }
+    .radar-section .radar-svg-wrap { width: 100%; max-width: 420px; height: auto; aspect-ratio: 420 / 380; margin: 0 auto; }
     .radar-axis-legend ul { grid-template-columns: 1fr; }
   }
 
@@ -355,7 +372,8 @@
 <section class="radar-section">
   <div class="radar-top">
     <div class="radar-svg-wrap">
-      <svg id="radar-svg" viewBox="0 0 380 360" role="img" aria-label="Radar chart"></svg>
+      <svg id="radar-svg" viewBox="-40 -20 460 400" role="img" aria-label="Radar chart"></svg>
+      <div class="chart-tooltip" id="chart-tooltip" role="tooltip" aria-hidden="true"></div>
     </div>
     <div class="radar-blurb">
       <h2 id="radar-h"></h2>
@@ -849,6 +867,43 @@ function renderAxisLegend() {
   }).join("");
 }
 
+// Custom tooltips for radar axis labels — sidesteps the native <title> hover delay.
+// Bound after every renderRadar() because renderRadar replaces the SVG's innerHTML.
+function bindChartTooltips() {
+  const tip = document.getElementById("chart-tooltip");
+  const wrap = document.querySelector(".radar-svg-wrap");
+  if (!tip || !wrap) return;
+  function show(el) {
+    const i = parseInt(el.getAttribute("data-axis-index"), 10);
+    const ax = ACTIVE.axes[i];
+    if (!ax) return;
+    tip.innerHTML = `<b>${ax.name}</b><span class="tip-tagline">${axisTagline(ax)}</span>`;
+    tip.setAttribute("data-on", "1");
+    tip.setAttribute("aria-hidden", "false");
+    // Position above the label, centred horizontally, clamped to the wrap box.
+    const wrapRect = wrap.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    const tipW = tip.offsetWidth, tipH = tip.offsetHeight;
+    let left = elRect.left - wrapRect.left + elRect.width / 2 - tipW / 2;
+    let top  = elRect.top  - wrapRect.top  - tipH - 8;
+    if (left < 4) left = 4;
+    if (left + tipW > wrapRect.width - 4) left = wrapRect.width - tipW - 4;
+    if (top < 0) top = elRect.bottom - wrapRect.top + 8;       // flip below if no space above
+    tip.style.left = left + "px";
+    tip.style.top  = top  + "px";
+  }
+  function hide() {
+    tip.removeAttribute("data-on");
+    tip.setAttribute("aria-hidden", "true");
+  }
+  document.querySelectorAll(".radar-axis-label").forEach(el => {
+    el.addEventListener("mouseenter", () => show(el));
+    el.addEventListener("mouseleave", hide);
+    el.addEventListener("focus", () => show(el));
+    el.addEventListener("blur", hide);
+  });
+}
+
 function renderLegend() {
   const root = document.getElementById("legend");
   let html = `<span class="lbl">${ACTIVE.meta.legendLabel}</span>`;
@@ -979,8 +1034,7 @@ function renderRadar() {
     if (lbl.y > RADAR_CY + 4) baseline = "hanging";
     else if (lbl.y < RADAR_CY - 4) baseline = "auto";
     const ax_i = ACTIVE.axes[i];
-    const tipPlain = `${ax_i.name}${axisTaglinePlain(ax_i) ? " — " + axisTaglinePlain(ax_i) : ""}`;
-    html += `<text class="radar-axis-label" x="${lbl.x.toFixed(1)}" y="${lbl.y.toFixed(1)}" text-anchor="${anchor}" dominant-baseline="${baseline}">${escSvg(ax_i.short)}<title>${escSvg(tipPlain)}</title></text>`;
+    html += `<text class="radar-axis-label" data-axis-index="${i}" x="${lbl.x.toFixed(1)}" y="${lbl.y.toFixed(1)}" text-anchor="${anchor}" dominant-baseline="${baseline}">${escSvg(ax_i.short)}</text>`;
   }
   const t1 = radarPoint(0, 0.5, N);
   html += `<text class="radar-tick-label" x="${(t1.x + 4).toFixed(1)}" y="${t1.y.toFixed(1)}" dominant-baseline="middle">0.5</text>`;
@@ -1039,6 +1093,7 @@ function renderAll() {
   renderLegend();
   renderAxes();
   renderRadar();
+  bindChartTooltips();  // re-bind after each renderRadar (SVG innerHTML was replaced)
   renderAxisLegend();
   renderCovar();
   syncLangPills();
