@@ -240,7 +240,10 @@
   }
   .chart-tooltip[data-on="1"] { opacity: 1; transform: translateY(0); display: block; }
   .chart-tooltip b { color: var(--ink); font-weight: 600; }
-  .chart-tooltip .tip-tagline { display: block; color: var(--ink-mute); margin-top: 3px; font-size: 11px; }
+  .chart-tooltip .tip-pole { display: block; margin-top: 4px; font-size: 11.5px; line-height: 1.4; color: var(--ink); }
+  .chart-tooltip .tip-pole em { display: inline-block; min-width: 54px; font-style: normal; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 600; margin-right: 4px; vertical-align: baseline; }
+  .chart-tooltip .tip-pole.left  em { color: var(--accent); }
+  .chart-tooltip .tip-pole.right em { color: var(--accent-2); }
 
   @media (max-width: 880px) {
     .radar-section .radar-top { flex-direction: column; align-items: stretch; gap: 14px; }
@@ -873,11 +876,18 @@ function bindChartTooltips() {
   const tip = document.getElementById("chart-tooltip");
   const wrap = document.querySelector(".radar-svg-wrap");
   if (!tip || !wrap) return;
+  const innerLabel = ACTIVE.meta.poleInnerLabel || (currentLang === "de" ? "Mitte" : "Centre");
+  const outerLabel = ACTIVE.meta.poleOuterLabel || (currentLang === "de" ? "Rand"  : "Rim");
   function show(el) {
     const i = parseInt(el.getAttribute("data-axis-index"), 10);
     const ax = ACTIVE.axes[i];
     if (!ax) return;
-    tip.innerHTML = `<b>${ax.name}</b><span class="tip-tagline">${axisTagline(ax)}</span>`;
+    const lp = (ax.leftPole  && ax.leftPole.label)  || "";
+    const rp = (ax.rightPole && ax.rightPole.label) || "";
+    tip.innerHTML =
+      `<b>${ax.name}</b>` +
+      `<span class="tip-pole left"><em>${innerLabel}</em>${lp}</span>` +
+      `<span class="tip-pole right"><em>${outerLabel}</em>${rp}</span>`;
     tip.setAttribute("data-on", "1");
     tip.setAttribute("aria-hidden", "false");
     // Position above the label, centred horizontally, clamped to the wrap box.
