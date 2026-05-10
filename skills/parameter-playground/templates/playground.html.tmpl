@@ -42,11 +42,12 @@
     text-decoration: none;
     transition: background-color 120ms, border-color 120ms, color 120ms;
   }
-  header a.skill-tag:hover {
+  header a.skill-tag[href]:hover {
     background-color: rgba(255,184,107,0.10);
     border-color: rgba(255,184,107,0.55);
     color: var(--ink);
   }
+  header a.skill-tag:not([href]) { cursor: default; }
   header h1 {
     font-size: 30px; margin: 0 0 8px; letter-spacing: -0.005em;
     font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -231,7 +232,7 @@
 </div>
 
 <header>
-  <a class="skill-tag" id="eyebrow" href="/" title="Demo overview"></a>
+  <a class="skill-tag" id="eyebrow"></a>
   <h1 id="h1"></h1>
   <p class="sub" id="header-sub"></p>
   <p class="crossref" id="crossref"></p>
@@ -265,6 +266,8 @@ const PLAYGROUND = {
   meta: {
     title: "/parameter-playground — feel the dynamics of a domain",
     eyebrow: "Claude Code skill — demo",
+    eyebrowHref: "/",
+    eyebrowTitle: "Demo overview",
     h1: "/parameter-playground",
     headerSub: "A skill that helps you feel the <em>dynamics</em> of a domain — by playing interactively with controllable inputs and observing how outcomes shift. Worked example: <b>coffee extraction</b> — four input sliders (water temperature, grind, time, pressure) drive five live outcome bars (bitterness, acidity, body, caffeine, clarity).",
     crossref: "For the <em>structure</em> of the same domain — the design space and its bundles — see the companion skill <a href='map'>/dimensional-map</a>.",
@@ -370,6 +373,7 @@ const PLAYGROUND = {
     meta: {
       title: "/parameter-playground — die Dynamik eines Themengebiets spüren",
       eyebrow: "Claude Code Skill — Demo",
+      eyebrowTitle: "Demo-Übersicht",
       h1: "/parameter-playground",
       headerSub: "Ein Skill, der hilft, die <em>Dynamik</em> eines Themengebiets zu spüren — durch interaktives Spielen mit steuerbaren Inputs und Beobachten, wie sich Outcomes verschieben. Anwendungsbeispiel: <b>Kaffee-Extraktion</b> — vier Eingabe-Slider (Wassertemperatur, Mahlgrad, Zeit, Druck) treiben fünf Live-Outcome-Balken (Bitterkeit, Säure, Körper, Koffein, Klarheit).",
       crossref: "Für die <em>Struktur</em> desselben Themengebiets — Achsen, Verteilungen, Bündel — siehe das Companion-Skill <a href='map'>/dimensional-map</a>.",
@@ -458,7 +462,17 @@ for (const inp of PLAYGROUND.inputs) state[inp.id] = inp.default ?? 0.5;
 function renderMeta() {
   document.getElementById("page-title").textContent = ACTIVE.meta.title;
   document.documentElement.lang = currentLang;
-  if (ACTIVE.meta.eyebrow) document.getElementById("eyebrow").innerHTML = "← " + ACTIVE.meta.eyebrow;
+  if (ACTIVE.meta.eyebrow) {
+    const eb = document.getElementById("eyebrow");
+    eb.innerHTML = "← " + ACTIVE.meta.eyebrow;
+    if (ACTIVE.meta.eyebrowHref) {
+      eb.setAttribute("href", ACTIVE.meta.eyebrowHref);
+      if (ACTIVE.meta.eyebrowTitle) eb.setAttribute("title", ACTIVE.meta.eyebrowTitle);
+    } else {
+      eb.removeAttribute("href");
+      eb.removeAttribute("title");
+    }
+  }
   document.getElementById("h1").textContent = ACTIVE.meta.h1;
   document.getElementById("header-sub").innerHTML = ACTIVE.meta.headerSub;
   if (ACTIVE.meta.crossref) document.getElementById("crossref").innerHTML = ACTIVE.meta.crossref;
