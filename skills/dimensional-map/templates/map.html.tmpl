@@ -273,12 +273,12 @@
   .axis-blurb { color: var(--ink-mute); font-size: 13px; max-width: 820px; margin: 0 0 12px; }
   .axis-blurb em { color: var(--ink); font-style: normal; }
 
-  .scale-wrap { position: relative; height: 110px; margin: 0 6px; }
+  .scale-wrap { position: relative; height: 130px; margin: 0 6px; }
   .scale-bar { position: absolute; left: 0; right: 0; top: 46px; height: 6px; border-radius: 3px;
     background: linear-gradient(to right, rgba(121,184,255,0.12), rgba(255,184,107,0.12));
     border: 1px solid var(--rule); }
   .density { position: absolute; left: 0; right: 0; top: 30px; height: 34px; border-radius: 6px; pointer-events: none; opacity: 0.45; filter: blur(0.5px); }
-  .endpoints { position: absolute; left: 0; right: 0; top: 92px; display: flex; justify-content: space-between;
+  .endpoints { position: absolute; left: 0; right: 0; top: 112px; display: flex; justify-content: space-between;
     font-size: 11px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.07em; pointer-events: none; }
   .endpoints span:first-child { color: var(--accent); }
   .endpoints span:last-child  { color: var(--accent-2); }
@@ -296,8 +296,12 @@
   .marker .label { position: absolute; left: 50%; transform: translateX(-50%);
     white-space: nowrap; font-size: 11px; color: var(--ink-mute); pointer-events: none; }
   .marker.target .label { color: var(--target); font-weight: 600; }
-  .marker.lbl-above .label { bottom: 24px; }
-  .marker.lbl-below .label { top: 24px; }
+  .marker.lbl-above .label,
+  .marker.lbl-above1 .label { bottom: 24px; }
+  .marker.lbl-above2 .label { bottom: 44px; }
+  .marker.lbl-below .label,
+  .marker.lbl-below1 .label { top: 24px; }
+  .marker.lbl-below2 .label { top: 44px; }
   .marker .label .conf { font-size: 9px; color: var(--ink-dim); margin-left: 2px; opacity: 0.65; }
 
   /* Endpoint dossier */
@@ -994,16 +998,37 @@ function renderAxes() {
       .filter(m => typeof m.x === "number")
       .sort((a, b) => a.x - b.x);
 
-    let lastSide = "below"; let lastX = -1;
-    const markers = ordered.map(m => {
-      let side;
-      if (m.isTarget) side = "above";
-      else if (m.x < 0.10 || m.x > 0.90) side = "above";
-      else {
-        side = lastSide === "below" ? "above" : "below";
-        if (Math.abs(m.x - lastX) > 0.10) side = "below";
+    // Marker side placement (4-tier collision detection):
+    // target gets the innermost tier above; every other marker picks the first
+    // tier whose nearest existing marker is at least OVERLAP away in x.
+    // OVERLAP ≈ 0.11 covers typical label widths (~115px on a ~1100px bar).
+    // The tier order is interleaved (above1, below1, above2, below2) so the
+    // map stays vertically compact when the data isn't crowded.
+    const OVERLAP = 0.11;
+    const targetEntry = ordered.find(om => om.isTarget);
+    const tiers = { above1: [], above2: [], below1: [], below2: [] };
+    const tierOrder = ["above1", "below1", "above2", "below2"];
+    const sideByKey = {};
+    if (targetEntry) {
+      tiers.above1.push(targetEntry.x);
+      sideByKey[targetEntry.key] = "above1";
+    }
+    const nearestDist = (arr, x) =>
+      arr.reduce((m, v) => Math.min(m, Math.abs(v - x)), Infinity);
+    for (const om of ordered) {
+      if (om.isTarget) continue;
+      let chosen = null, bestDist = -1;
+      for (const t of tierOrder) {
+        const d = nearestDist(tiers[t], om.x);
+        if (d >= OVERLAP) { chosen = t; break; }
+        if (d > bestDist) { bestDist = d; chosen = t; } // remember least crowded as fallback
       }
-      lastSide = side; lastX = m.x;
+      tiers[chosen].push(om.x);
+      sideByKey[om.key] = chosen;
+    }
+
+    const markers = ordered.map(m => {
+      const side = sideByKey[m.key];
       const hidden = m.isTarget ? false : !visible.has(m.key);
       const targetCls = m.isTarget ? " target" : "";
       const conf = m.conf ? `<span class="conf">${m.conf}</span>` : "";
