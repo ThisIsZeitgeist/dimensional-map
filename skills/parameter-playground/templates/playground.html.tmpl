@@ -465,9 +465,17 @@ function renderMeta() {
   if (ACTIVE.meta.eyebrow) {
     const eb = document.getElementById("eyebrow");
     eb.innerHTML = "← " + ACTIVE.meta.eyebrow;
-    if (ACTIVE.meta.eyebrowHref) {
-      eb.setAttribute("href", ACTIVE.meta.eyebrowHref);
-      if (ACTIVE.meta.eyebrowTitle) eb.setAttribute("title", ACTIVE.meta.eyebrowTitle);
+    // Default: link the eyebrow chip back to the skill's official demo + source.
+    // To remove the link entirely, set meta.eyebrowHref = false in the DATA block.
+    const DEFAULT_EYEBROW_HREF  = "https://dimensional-thinking.pages.dev";
+    const DEFAULT_EYEBROW_TITLE = (currentLang === "de")
+      ? "Erstellt mit /parameter-playground — Demo & Quelle"
+      : "Built with /parameter-playground — demo & source";
+    const href  = (ACTIVE.meta.eyebrowHref  === undefined) ? DEFAULT_EYEBROW_HREF  : ACTIVE.meta.eyebrowHref;
+    const title = (ACTIVE.meta.eyebrowTitle === undefined) ? DEFAULT_EYEBROW_TITLE : ACTIVE.meta.eyebrowTitle;
+    if (href) {
+      eb.setAttribute("href", href);
+      if (title) eb.setAttribute("title", title);
     } else {
       eb.removeAttribute("href");
       eb.removeAttribute("title");
