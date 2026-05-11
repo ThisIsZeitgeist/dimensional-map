@@ -2,7 +2,7 @@
 
 Two complementary [Claude Code](https://claude.com/claude-code) skills for building **multivariate intuition** in any new domain — by treating the domain as a phase space of axes, distributions, and bundles, then making both **structure** and **dynamics** visible.
 
-**Live demo:** [dimensional-thinking.pages.dev](https://dimensional-thinking.pages.dev/) — coffee brewing as a worked example, bilingual (EN/DE).
+**Live demo:** [maps.denkupgrade.de](https://maps.denkupgrade.de/) — coffee brewing as a worked example, bilingual (EN/DE).
 
 ---
 
@@ -106,7 +106,7 @@ Optional: add a `de: { ... }` block (or any other ISO code) inside the DATA for 
             └── playground.html.tmpl
 ```
 
-The live demo (coffee brewing, bilingual EN/DE) is hosted separately at [dimensional-thinking.pages.dev](https://dimensional-thinking.pages.dev/). The templates under `skills/*/templates/` produce that demo — clone a template, edit the `DATA` block at the top, open in a browser.
+The live demo (coffee brewing, bilingual EN/DE) is hosted separately at [maps.denkupgrade.de](https://maps.denkupgrade.de/). The templates under `skills/*/templates/` produce that demo — clone a template, edit the `DATA` block at the top, open in a browser.
 
 ## Where the playground stops
 
