@@ -30,6 +30,7 @@
     --target: #f97583;
   }
   * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
   html, body { background: var(--bg); color: var(--ink); margin: 0; }
   body {
     font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
@@ -179,7 +180,7 @@
   }
   .radar-section .radar-top { display: flex; gap: 28px; align-items: center; }
   .radar-section .radar-svg-wrap { flex: 0 0 auto; width: 420px; height: 380px; position: relative; }
-  .radar-section .radar-svg-wrap svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .radar-section .radar-svg-wrap > svg { width: 100%; height: 100%; display: block; overflow: visible; }
   .radar-section .radar-blurb { flex: 1; min-width: 0; }
   .radar-section h2 { margin: 0 0 6px; font-size: 17px; letter-spacing: -0.005em; }
   .radar-section h2 .kind { font-size: 11px; font-weight: 500; color: var(--ink-dim); margin-left: 8px; text-transform: uppercase; letter-spacing: 0.07em; }
@@ -190,8 +191,9 @@
 
   .radar-grid { fill: none; stroke: var(--rule); stroke-width: 1; }
   .radar-axis-line { stroke: var(--rule); stroke-width: 1; opacity: 0.65; }
-  .radar-axis-label { fill: var(--ink-dim); font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; cursor: help; }
-  .radar-axis-label:hover { fill: var(--ink); }
+  .radar-axis-label { fill: var(--ink-dim); font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; cursor: help; transition: fill 120ms; }
+  .radar-axis-label:hover,
+  .radar-axis-label.is-highlighted { fill: var(--ink); font-weight: 600; }
   .radar-tick-label { fill: var(--ink-dim); font-size: 9px; opacity: 0.55; }
   .radar-poly { fill-opacity: 0.12; stroke-width: 1.5; transition: fill-opacity 120ms; cursor: default; }
   .radar-poly:hover { fill-opacity: 0.32; }
@@ -227,6 +229,93 @@
   .radar-axis-legend li b { color: var(--ink); font-weight: 600; }
   .radar-axis-legend li .axis-fullname { color: var(--ink-mute); }
   .radar-axis-legend li .axis-tagline { color: var(--ink-dim); }
+  .radar-axis-legend li > a {
+    color: inherit; text-decoration: none; display: block;
+    border-radius: 3px; transition: background 120ms;
+  }
+  .radar-axis-legend li > a:hover { background: rgba(255,255,255,0.04); }
+  .radar-axis-legend li > a:hover .axis-tagline { color: var(--ink-mute); }
+  .radar-axis-legend li > a:focus-visible {
+    outline: 1px solid var(--rule-2); outline-offset: 2px;
+  }
+  .radar-axis-legend li .axis-poles {
+    display: block; font-size: 11px; color: var(--ink-dim); margin-top: 2px;
+  }
+  .radar-axis-legend li .axis-poles em {
+    font-style: normal; font-size: 9.5px; text-transform: uppercase;
+    letter-spacing: 0.06em; font-weight: 600; margin-right: 4px;
+  }
+  .radar-axis-legend li .axis-poles .pole-inner em { color: var(--accent); }
+  .radar-axis-legend li .axis-poles .pole-outer em { color: var(--accent-2); }
+  .radar-axis-legend li .axis-poles .sep { color: var(--ink-mute); margin: 0 7px; }
+
+  /* Bidirectional axis highlight: radar label ⇄ legend entry / per-axis bullet.
+     Hover on any of the three lights up the other two. */
+  .radar-axis-legend li.axis-li-highlighted > a {
+    background: rgba(255,255,255,0.06);
+  }
+  .radar-axis-legend li.axis-li-highlighted b { color: var(--ink); }
+  .radar-axis-legend li.axis-li-highlighted .axis-tagline { color: var(--ink-mute); }
+  .radar-blurb #radar-look-list li.axis-li-highlighted {
+    background: rgba(255,255,255,0.05);
+    border-radius: 4px;
+  }
+  .radar-blurb #radar-look-list li.axis-li-highlighted b { color: var(--ink); }
+
+  /* Per-domain explanation bar — buttons mirror the COMPARE pills. Sits inside
+     the radar-section, above the chart + text block. Only rendered when DATA
+     supplies a `perDomain` block; otherwise hidden so old maps keep working. */
+  .radar-section .radar-explain-bar {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    align-items: center;
+    margin: 0 0 14px;
+    padding: 8px 10px;
+    background: var(--panel-2);
+    border: 1px solid var(--rule-2);
+    border-radius: 8px;
+  }
+  .radar-section .radar-explain-bar[hidden] { display: none; }
+  .radar-section .radar-explain-bar .lbl {
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--ink-dim); margin-right: 4px; font-weight: 600;
+  }
+  .radar-section .radar-explain-bar button {
+    background: transparent;
+    border: 1px solid var(--rule);
+    color: var(--ink-mute);
+    font: 12px/1.2 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+    padding: 4px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: background 120ms, border-color 120ms, color 120ms;
+  }
+  .radar-section .radar-explain-bar button .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--ink-dim);
+    flex: 0 0 auto;
+  }
+  .radar-section .radar-explain-bar button:hover {
+    color: var(--ink); border-color: var(--ink-dim);
+  }
+  .radar-section .radar-explain-bar button.active {
+    background: rgba(255,255,255,0.06);
+    color: var(--ink);
+  }
+
+  /* Coloured dot + position chip inside the radar blurb when a domain explanation is active */
+  .radar-blurb .domain-dot {
+    display: inline-block;
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: -1px;
+    background: var(--ink-dim);
+  }
+  .radar-blurb #radar-look-list li .pos {
+    color: var(--ink-dim); font-size: 11px; font-weight: 500;
+    margin-left: 1px;
+  }
 
   /* Instant custom tooltip for chart axis labels (no native-title delay) */
   .chart-tooltip {
@@ -240,11 +329,33 @@
     display: none;
   }
   .chart-tooltip[data-on="1"] { opacity: 1; transform: translateY(0); display: block; }
-  .chart-tooltip b { color: var(--ink); font-weight: 600; }
+  .chart-tooltip b {
+    display: block; color: var(--ink); font-weight: 600;
+    font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.05em;
+    margin-bottom: 3px;
+  }
   .chart-tooltip .tip-pole { display: block; margin-top: 4px; font-size: 11.5px; line-height: 1.4; color: var(--ink); }
   .chart-tooltip .tip-pole em { display: inline-block; min-width: 54px; font-style: normal; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 600; margin-right: 4px; vertical-align: baseline; }
   .chart-tooltip .tip-pole.left  em { color: var(--accent); }
   .chart-tooltip .tip-pole.right em { color: var(--accent-2); }
+
+  /* Discovery hint inside the radar box. Visible by default on all devices;
+     on hover-capable devices, dismissed after the first label hover and
+     remembered in localStorage. On touch devices it stays. */
+  .radar-hint {
+    display: inline-flex;
+    position: absolute; top: 6px; left: 6px; z-index: 4;
+    align-items: center; gap: 6px;
+    font-size: 10.5px; line-height: 1;
+    color: var(--ink-mute); letter-spacing: 0.02em;
+    background: var(--panel-2); border: 1px solid var(--rule); border-radius: 999px;
+    padding: 4px 10px 4px 8px;
+    pointer-events: none;
+    transition: opacity 220ms ease, transform 220ms ease;
+  }
+  .radar-hint svg { width: 12px; height: 12px; opacity: 0.85; flex: 0 0 auto; }
+  .radar-hint[data-fade="1"] { opacity: 0; transform: translateY(-2px); }
+  .radar-hint[data-dismissed="1"] { display: none; }
 
   @media (max-width: 880px) {
     .radar-section .radar-top { flex-direction: column; align-items: stretch; gap: 14px; }
@@ -257,6 +368,7 @@
   .axis {
     background: var(--panel); border: 1px solid var(--rule); border-radius: 10px;
     padding: 16px 20px 22px;
+    scroll-margin-top: 16px;
   }
   .axis-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
   .axis-name { font-size: 15px; font-weight: 600; color: var(--ink); letter-spacing: -0.005em; }
@@ -354,6 +466,48 @@
   .covar-card .ex { color: var(--ink-dim); font-size: 12px; font-style: italic; }
   .covar-card .ex b { color: var(--ink-mute); font-style: normal; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; font-size: 10px; margin-right: 4px; }
 
+  /* Sources section — sources grouped by the axes / instances they informed.
+     Auto-rendered when DATA.sources is non-empty; hidden otherwise. */
+  .sources { margin-top: 28px; }
+  .sources[hidden] { display: none; }
+  .sources > h2 { font-size: 17px; margin: 0 0 6px; letter-spacing: -0.005em; }
+  .sources > .sources-intro { font-size: 13px; color: var(--ink-mute); margin: 0 0 16px; max-width: 820px; }
+  .sources > .sources-intro b { color: var(--ink); font-weight: 600; }
+  .sources .src-section { margin-bottom: 18px; }
+  .sources .src-section > h3 {
+    font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.10em;
+    color: var(--ink-dim); font-weight: 600; margin: 0 0 8px;
+  }
+  .sources .src-group {
+    background: var(--panel); border: 1px solid var(--rule);
+    border-radius: 8px; padding: 10px 14px;
+    margin-bottom: 6px;
+  }
+  .sources .src-group > .group-label {
+    font-size: 12.5px; font-weight: 600; color: var(--ink);
+    margin: 0 0 6px; display: flex; align-items: center; gap: 8px;
+  }
+  .sources .src-group > .group-label .group-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--ink-dim); flex: 0 0 auto;
+  }
+  .sources .src-group > .group-label .group-kind {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em;
+    color: var(--ink-dim); font-weight: 500; margin-left: 6px;
+  }
+  .sources .src-list { list-style: none; padding: 0; margin: 0; }
+  .sources .src-list > li {
+    padding: 4px 0 4px 16px; position: relative;
+    font-size: 12.5px; color: var(--ink-mute); line-height: 1.5;
+  }
+  .sources .src-list > li::before {
+    content: "·"; position: absolute; left: 4px; top: 4px; color: var(--ink-dim);
+  }
+  .sources .src-list .src-title { color: var(--ink); font-weight: 500; }
+  .sources .src-list .src-title a { color: var(--accent); text-decoration: none; }
+  .sources .src-list .src-title a:hover { text-decoration: underline; }
+  .sources .src-list .src-note { color: var(--ink-mute); margin-left: 4px; }
+
   .footer-note { margin-top: 30px; color: var(--ink-dim); font-size: 12px; line-height: 1.6; border-top: 1px solid var(--rule-2); padding-top: 16px; }
   .footer-note b { color: var(--ink-mute); }
 
@@ -387,10 +541,12 @@
 <div class="legend" id="legend"></div>
 
 <section class="radar-section">
+  <div class="radar-explain-bar" id="radar-explain-bar"></div>
   <div class="radar-top">
     <div class="radar-svg-wrap">
       <svg id="radar-svg" viewBox="-30 -20 420 380" role="img" aria-label="Radar chart"></svg>
       <div class="chart-tooltip" id="chart-tooltip" role="tooltip" aria-hidden="true"></div>
+      <div class="radar-hint" id="radar-hint" aria-hidden="true"></div>
     </div>
     <div class="radar-blurb">
       <h2 id="radar-h"></h2>
@@ -407,6 +563,7 @@
 
 <div class="scales" id="scales"></div>
 <div class="covar" id="covar"></div>
+<section class="sources" id="sources"></section>
 <div class="footer-note" id="footer-note"></div>
 
 <script>
@@ -604,6 +761,94 @@ const DATA = {
       example: "Espresso machine $1000+ to deliver pressure; French press $20 to use no pressure.", strength: "tight" },
   ],
 
+  perDomain: {
+    espresso: {
+      intro: "Espresso is the right-pole exemplar of the field — maximum pressure, minimum time, finest grind, top of the cost and ritual axes. The whole bundle is forced by the single choice to brew at 9 bar.",
+      axes: [
+        "Defines the right pole at 9 bar — what makes espresso espresso, and what forces the rest of the bundle.",
+        "~30 seconds of extraction is roughly the entire window between under- and over-extracted.",
+        "Talcum-fine grind is the only way 9-bar water extracts anything at all in seconds.",
+        "Puck self-filters in the basket — no paper, but no French-press-style sediment either.",
+        "Pump-driven machine plus precision grinder; $1000-3000+ prosumer setup, the priciest in the field.",
+        "Dose, distribute, tamp, pull, monitor profile, stop at yield — mastery takes months and varies by barista."
+      ]
+    },
+    aeropress: {
+      intro: "AeroPress sits closest to espresso among the cheap methods — low pressure but not zero, short-ish time, unusually flexible across recipes. The compromise method.",
+      axes: [
+        "Manual push provides 1-2 bar — well below espresso, distinctly above pure gravity.",
+        "Short brews (~1-2 min) — fast enough to demand finer grind than V60.",
+        "Medium-fine grind, adapted to the chosen recipe.",
+        "Paper filter standard (metal optional) — cleaner cup than French press.",
+        "~$40 brewer; a manual grinder is enough to get started.",
+        "Several steps with timing, but the margins are forgiving."
+      ]
+    },
+    v60: {
+      intro: "V60 is the canonical pour-over — gravity-driven, paper-filtered, ritual-heavy, but cheap. The opposite of espresso on most axes except ritual.",
+      axes: [
+        "Pure gravity; no pressure assist at any point in the brew.",
+        "2-4 minute pour — slower than espresso, faster than immersion.",
+        "Medium grind, tuned to the cone's flow rate.",
+        "Pure paper filter — the cleanest cup in the field.",
+        "$20-50 for cone + kettle; cheap entry, expensive optionality with gooseneck kettles and burr grinders.",
+        "Bloom, pulse, swirl, timing per recipe — pour-over is a hobbyist craft on a budget."
+      ]
+    },
+    frenchpress: {
+      intro: "French press is the forgiving end: atmospheric immersion, coarse grind, no paper, low cost, low ritual. The introductory method that asks nothing of the user.",
+      axes: [
+        "Atmospheric immersion; only diffusion drives extraction.",
+        "~4 minutes of immersion — long enough for diffusion to work without pressure.",
+        "Sea-salt coarse — tolerates the long contact time without over-extracting.",
+        "Metal mesh only; oils and fines pass into the cup, giving the heavy mouthfeel.",
+        "$20 carafe; any grinder works, even a blade grinder.",
+        "Add, wait, plunge; minimal technique-sensitivity, hard to ruin."
+      ]
+    },
+    coldbrew: {
+      intro: "Cold brew is the outlier on time — measured in hours, not seconds — paired with cold water and coarse grind. A different extraction physics from the rest of the field.",
+      axes: [
+        "Atmospheric — no pressure assist.",
+        "12-24 hours — the extreme right pole on the time axis, four orders of magnitude past espresso.",
+        "Coarse grind, needed to avoid over-extraction across that many hours.",
+        "Mesh or cloth filter; sometimes paper-strained after.",
+        "Jar plus filter — the cheapest gear in the field.",
+        "Combine, wait overnight; zero hands-on time, set-and-forget."
+      ]
+    }
+  },
+
+  // Sources — each entry can declare which axes / which instances it
+  // informed via `uses.axes` and `uses.models`. Renderer groups them by
+  // target. `note` is optional one-line context; `url` is optional.
+  sources: [
+    { id: "hoffmann-atlas",
+      title: "Hoffmann, J. — The World Atlas of Coffee (2nd ed., Mitchell Beazley, 2018)",
+      url: "https://www.jameshoffmann.co.uk/",
+      note: "Reference text for brewing methods, ratios, and equipment trade-offs.",
+      uses: { axes: ["pressure", "time", "grind", "filtration"], models: ["espresso", "v60", "frenchpress"] } },
+    { id: "rao-handbook",
+      title: "Rao, S. — The Professional Barista's Handbook (2008)",
+      url: "https://www.scottrao.com/",
+      note: "Espresso extraction physics, grind-pressure-time coupling.",
+      uses: { axes: ["pressure", "grind", "time", "ritual"], models: ["espresso"] } },
+    { id: "sca-protocols",
+      title: "Specialty Coffee Association — Brewing Standards & Cupping Protocols",
+      url: "https://sca.coffee/research",
+      note: "Industry reference for water temperature, ratio, and grind specs.",
+      uses: { axes: ["grind", "time", "filtration"], models: ["v60", "aeropress"] } },
+    { id: "hendon-cold-extraction",
+      title: "Hendon, C. et al. — Coffee chemistry papers on extraction kinetics",
+      note: "Cold-water extraction differs from hot — solubility-driven, different compounds dominate.",
+      uses: { axes: ["time"], models: ["coldbrew"] } },
+    { id: "aeropress-recipes",
+      title: "World AeroPress Championship — annual recipe archive",
+      url: "https://worldaeropresschampionship.com/",
+      note: "Documents the recipe-flexibility that places AeroPress mid-axis on most variables.",
+      uses: { models: ["aeropress"] } },
+  ],
+
   // ===== German overrides — same shape, partial allowed; missing keys fall back to top-level =====
   de: {
     meta: {
@@ -767,6 +1012,78 @@ const DATA = {
         mechanism: "9 bar reproduzierbar zu erzeugen verlangt eine Pumpe und haltbare Dichtungen; Schwerkraft und Immersion sind kostenlos. Die Kapitalkosten des Drucks machen das Espresso-Bündel teuer, nicht der Brühvorgang selbst.",
         example: "Espressomaschine $1000+ um Druck zu liefern; French Press $20 um keinen Druck zu nutzen.", strength: "eng" },
     ],
+    perDomain: {
+      espresso: {
+        intro: "Espresso ist der Exemplar am rechten Pol des Feldes — maximaler Druck, minimale Zeit, feinster Mahlgrad, Spitze der Kosten- und Ritual-Achsen. Das ganze Bündel wird durch die einzige Entscheidung erzwungen, mit 9 bar zu brühen.",
+        axes: [
+          "Definiert den rechten Pol bei 9 bar — was Espresso zu Espresso macht und den Rest des Bündels erzwingt.",
+          "~30 Sekunden Extraktion sind grob das gesamte Fenster zwischen unter- und überextrahiert.",
+          "Talkumfeiner Mahlgrad ist der einzige Weg, dass 9-bar-Wasser in Sekunden überhaupt etwas extrahiert.",
+          "Der Puck filtert sich im Sieb selbst — kein Papier, aber kein French-Press-artiges Sediment in der Tasse.",
+          "Pumpenmaschine plus Präzisionsmühle; $1000-3000+ Prosumer-Setup, das teuerste Equipment im Feld.",
+          "Dosieren, verteilen, tampen, ziehen, Profil überwachen, am Ertrag stoppen — Meisterschaft dauert Monate und variiert von Barista zu Barista."
+        ]
+      },
+      aeropress: {
+        intro: "AeroPress sitzt unter den günstigen Methoden am nächsten an Espresso — wenig Druck, aber nicht null, kurze Zeit, ungewöhnlich flexibel über Rezepte. Die Kompromissmethode.",
+        axes: [
+          "Manueller Druck liefert 1-2 bar — weit unter Espresso, deutlich über reiner Schwerkraft.",
+          "Kurze Brühen (~1-2 min) — schnell genug, um feineren Mahlgrad als V60 zu verlangen.",
+          "Mittelfeiner Mahlgrad, passt sich dem gewählten Rezept an.",
+          "Papier Standard (Metall optional) — sauberere Tasse als French Press.",
+          "~$40 für den Aufbau; eine Handmühle reicht für den Einstieg.",
+          "Mehrere Schritte mit Timing, aber die Spielräume sind verzeihend."
+        ]
+      },
+      v60: {
+        intro: "V60 ist der kanonische Pour-over — schwerkraftgetrieben, papier-gefiltert, ritualreich, aber günstig. Das Gegenteil von Espresso auf den meisten Achsen außer Ritual.",
+        axes: [
+          "Reine Schwerkraft; keinerlei Druckunterstützung im Brühvorgang.",
+          "2-4 Minuten Aufguss — langsamer als Espresso, schneller als Immersion.",
+          "Mittlerer Mahlgrad, auf die Durchflussrate des Kegels abgestimmt.",
+          "Reiner Papierfilter — die sauberste Tasse im Feld.",
+          "$20-50 für Kegel + Kanne; günstiger Einstieg, teure Aufrüstoptionen mit Schwanenhalskanne und Kegelmühle.",
+          "Bloom, Pulse, Swirl, Timing pro Rezept — Pour-over ist Hobby-Handwerk auf kleinem Budget."
+        ]
+      },
+      frenchpress: {
+        intro: "French Press ist das verzeihende Ende: atmosphärische Immersion, grober Mahlgrad, kein Papier, niedrige Kosten, niedriges Ritual. Die Einstiegsmethode, die nichts vom Nutzer verlangt.",
+        axes: [
+          "Atmosphärische Immersion; nur Diffusion treibt die Extraktion.",
+          "~4 Minuten Immersion — lang genug, dass Diffusion ohne Druck wirkt.",
+          "Meersalz-grob — verträgt lange Kontaktzeit ohne Überextraktion.",
+          "Nur Metallsieb; Öle und Feinanteile gehen in die Tasse und liefern das schwere Mundgefühl.",
+          "$20-Karaffe; jede Mühle reicht, selbst eine Schlagmühle.",
+          "Einfüllen, warten, drücken; minimale Techniksensitivität, schwer zu ruinieren."
+        ]
+      },
+      coldbrew: {
+        intro: "Cold Brew ist der Ausreißer auf der Zeit-Achse — in Stunden statt Sekunden — gepaart mit kaltem Wasser und grobem Mahlgrad. Eine andere Extraktionsphysik als der Rest des Feldes.",
+        axes: [
+          "Atmosphärisch — keinerlei Druckunterstützung.",
+          "12-24 Stunden — das Extrem am rechten Pol der Zeit-Achse, vier Größenordnungen jenseits Espresso.",
+          "Grober Mahlgrad, nötig, um Überextraktion über so viele Stunden zu vermeiden.",
+          "Sieb oder Tuch; manchmal nach dem Brühen durch Papier nachgefiltert.",
+          "Krug plus Filter — das günstigste Equipment im Feld.",
+          "Vermischen, über Nacht warten; null aktive Zeit, Set-and-Forget."
+        ]
+      }
+    },
+    // DE-Overrides für Quellen: nur Notizen werden übersetzt; Titel + URLs
+    // bleiben kanonisch (englischsprachige Originalwerke). `uses` aus dem
+    // kanonischen Block wird übernommen, wenn hier nicht überschrieben.
+    sources: [
+      { id: "hoffmann-atlas",
+        note: "Standardwerk zu Brühmethoden, Verhältnissen und Equipment-Trade-offs." },
+      { id: "rao-handbook",
+        note: "Espresso-Extraktionsphysik, Mahlgrad-Druck-Zeit-Kopplung." },
+      { id: "sca-protocols",
+        note: "Branchenreferenz für Wassertemperatur, Verhältnis und Mahlgrad-Specs." },
+      { id: "hendon-cold-extraction",
+        note: "Kaltwasser-Extraktion unterscheidet sich von Heißwasser — löslichkeitsgetrieben, andere Verbindungen dominieren." },
+      { id: "aeropress-recipes",
+        note: "Dokumentiert die Rezept-Flexibilität, die AeroPress auf den meisten Variablen in die Mitte setzt." },
+    ],
   },
 };
 
@@ -791,8 +1108,36 @@ function setLangCookie(lang) {
 // Merge canonical (top-level) DATA with the active language overrides.
 // Missing keys in the override fall back to canonical, so partial translations work.
 function buildActive(lang) {
+  function mergePerDomain(canon, overlay) {
+    if (!canon && !overlay) return undefined;
+    const out = {};
+    const keys = new Set([...Object.keys(canon || {}), ...Object.keys(overlay || {})]);
+    for (const k of keys) {
+      const c = (canon && canon[k]) || {};
+      const o = (overlay && overlay[k]) || {};
+      out[k] = {
+        ...c, ...o,
+        axes: (o.axes && o.axes.length) ? o.axes : c.axes,
+      };
+    }
+    return out;
+  }
+  function mergeSources(canon, overlay) {
+    if (!canon || !canon.length) return overlay && overlay.length ? overlay : (canon || []);
+    if (!overlay || !overlay.length) return canon;
+    // Overlays merged by id (or by index if no id). Allows partial translation —
+    // e.g. translate just `title`/`note` and leave `uses`/`url` from canonical.
+    const byId = {};
+    canon.forEach((s, i) => { byId[s.id || `__idx_${i}`] = i; });
+    return canon.map((s, i) => {
+      const key = s.id || `__idx_${i}`;
+      const ov = overlay.find(o => (o.id || `__idx_${overlay.indexOf(o)}`) === key);
+      return ov ? { ...s, ...ov, uses: ov.uses || s.uses } : s;
+    });
+  }
   if (lang !== "de" || !DATA.de) {
-    return { meta: DATA.meta, models: DATA.models, axes: DATA.axes, covariations: DATA.covariations };
+    return { meta: DATA.meta, models: DATA.models, axes: DATA.axes, covariations: DATA.covariations,
+             perDomain: DATA.perDomain, sources: DATA.sources };
   }
   const o = DATA.de;
   return {
@@ -808,6 +1153,8 @@ function buildActive(lang) {
     }),
     covariations: DATA.covariations.map((c, i) =>
       ({ ...c, ...((o.covariations && o.covariations[i]) || {}) })),
+    perDomain: mergePerDomain(DATA.perDomain, o.perDomain),
+    sources: mergeSources(DATA.sources, o.sources),
   };
 }
 
@@ -819,11 +1166,18 @@ let ACTIVE = buildActive(currentLang);
 const visible = new Set();
 DATA.models.forEach(m => { if (m.isTarget) visible.add(m.key); });
 
+// Which domain's axis-by-axis explanation is currently displayed in the radar blurb.
+// null = default "Domain silhouettes" text. Auto-set on pill ON; manually
+// overridable via the explain-bar buttons.
+let activeExplain = null;
+
 // Inject per-model CSS rules from canonical DATA (color is language-independent).
 (function injectModelStyles() {
   const css = DATA.models.map(m => `
     .marker[data-key="${m.key}"]    { background: ${m.color}; }
     .pill[data-key="${m.key}"] .dot { background: ${m.color}; }
+    .radar-explain-bar button[data-key="${m.key}"] .dot { background: ${m.color}; }
+    .radar-explain-bar button[data-key="${m.key}"].active { border-color: ${m.color}; }
     .radar-poly[data-key="${m.key}"]{ fill: ${m.color}; stroke: ${m.color}; }
   `).join("\n");
   const style = document.createElement("style");
@@ -861,11 +1215,117 @@ function renderHeaderAndMeta() {
   document.getElementById("meta-callout").innerHTML = ACTIVE.meta.metaCallout;
   document.getElementById("footer-note").innerHTML = ACTIVE.meta.footer;
 
-  document.getElementById("radar-h").innerHTML = `${ACTIVE.meta.radarH} <span class="kind">${ACTIVE.meta.radarKind}</span>`;
-  document.getElementById("radar-p1").innerHTML = ACTIVE.meta.radarP1;
-  document.getElementById("radar-look-h").textContent = ACTIVE.meta.radarLookH;
-  document.getElementById("radar-look-list").innerHTML =
-    ACTIVE.meta.radarLook.map(s => `<li>${s}</li>`).join("");
+  renderRadarBlurb();
+
+  const hintEl = document.getElementById("radar-hint");
+  const hoverCapable = (typeof matchMedia === "function") && matchMedia("(hover: hover)").matches;
+  const hintText = ACTIVE.meta.radarHint || (hoverCapable
+    ? (currentLang === "de" ? "Labels anhovern" : "hover labels")
+    : (currentLang === "de" ? "Label antippen"  : "tap a label"));
+  hintEl.innerHTML =
+    `<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">` +
+      `<path d="M3 3 Q 3 10 10 10"/>` +
+      `<path d="M7 7 L 10 10 L 7 12.5"/>` +
+    `</svg>` +
+    `<span>${hintText}</span>`;
+  // On hover-capable devices, persist the dismissal once the user has discovered
+  // the interaction. Touch devices keep the hint (no mouseenter ever fires there).
+  try {
+    if (hoverCapable && localStorage.getItem("dm.radarHintDismissed") === "1") {
+      hintEl.setAttribute("data-dismissed", "1");
+    } else {
+      hintEl.removeAttribute("data-dismissed");
+      hintEl.removeAttribute("data-fade");
+    }
+  } catch (e) { /* localStorage unavailable — show hint, don't persist */ }
+}
+
+// --- Per-domain explanation bar + radar blurb --------------------------------
+// The explain bar lives at the top of the radar panel, mirroring the COMPARE
+// pill row. Clicking a button swaps the right-side text block from the generic
+// "Domain silhouettes" description to a per-axis explanation of why that
+// instance sits where it does on the chart. State is `activeExplain` (model
+// key, or null for default text). Bar is hidden entirely when DATA supplies
+// no `perDomain` block — old maps stay unchanged.
+function renderExplainBar() {
+  const root = document.getElementById("radar-explain-bar");
+  if (!root) return;
+  if (!ACTIVE.perDomain || Object.keys(ACTIVE.perDomain).length === 0) {
+    root.setAttribute("hidden", "hidden");
+    root.innerHTML = "";
+    return;
+  }
+  root.removeAttribute("hidden");
+  const label = ACTIVE.meta.explainBarLabel ||
+    (currentLang === "de" ? "Achsen-Erläuterung:" : "Per-axis explanation:");
+  let html = `<span class="lbl">${label}</span>`;
+  for (let i = 0; i < ACTIVE.models.length; i++) {
+    const m = ACTIVE.models[i];
+    const canon = DATA.models[i];
+    if (!ACTIVE.perDomain[canon.key]) continue;  // skip if no per-domain content for this model
+    const cls = (activeExplain === canon.key) ? "active" : "";
+    html += `<button class="${cls}" data-key="${canon.key}" type="button" aria-pressed="${activeExplain === canon.key}"><span class="dot"></span>${m.name}</button>`;
+  }
+  root.innerHTML = html;
+  root.querySelectorAll("button[data-key]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const key = btn.dataset.key;
+      // Click active = deselect; click another = switch.
+      activeExplain = (activeExplain === key) ? null : key;
+      renderExplainBar();
+      renderRadarBlurb();
+    });
+  });
+}
+
+// Render the right-side text block of the radar panel. Two modes:
+//  - default (activeExplain === null): generic "Domain silhouettes" copy.
+//  - per-domain (activeExplain set):   intro paragraph + N axis bullets,
+//    each with the instance's chart position and a one-sentence reason.
+// Hover on a bullet highlights the matching axis label on the radar (and the
+// matching legend entry below the chart) — symmetric with radar-label hover.
+function renderRadarBlurb() {
+  const h = document.getElementById("radar-h");
+  const p1 = document.getElementById("radar-p1");
+  const lookH = document.getElementById("radar-look-h");
+  const lookList = document.getElementById("radar-look-list");
+  const pd = (ACTIVE.perDomain && activeExplain) ? ACTIVE.perDomain[activeExplain] : null;
+
+  if (pd && activeExplain) {
+    const canon = DATA.models.find(x => x.key === activeExplain);
+    const idx = DATA.models.indexOf(canon);
+    const m = (idx >= 0 && ACTIVE.models[idx]) ? ACTIVE.models[idx] : canon;
+    const titleSuffix = ACTIVE.meta.explainSilhouetteSuffix ||
+      (currentLang === "de" ? "warum diese Silhouette" : "why this silhouette");
+    h.innerHTML = `<span class="domain-dot" style="background:${canon.color}"></span>${m.full || m.name} <span class="kind">${titleSuffix}</span>`;
+    p1.innerHTML = pd.intro || "";
+    lookH.textContent = pd.lookH || (currentLang === "de" ? "Achse für Achse:" : "Per-axis breakdown:");
+    lookList.innerHTML = ACTIVE.axes.map((ax, i) => {
+      const pos = (ax.pos && (activeExplain in ax.pos)) ? ax.pos[activeExplain] : null;
+      const conf = (ax.confidence && ax.confidence[activeExplain]) ? ax.confidence[activeExplain] : "";
+      const posLabel = (pos !== null) ? ` <span class="pos">(${pos.toFixed(2)}${conf})</span>` : "";
+      const expl = (pd.axes && pd.axes[i]) ? pd.axes[i] : "";
+      return `<li data-axis-index="${i}"><b>${ax.short}</b>${posLabel} — ${expl}</li>`;
+    }).join("");
+  } else {
+    h.innerHTML = `${ACTIVE.meta.radarH} <span class="kind">${ACTIVE.meta.radarKind}</span>`;
+    p1.innerHTML = ACTIVE.meta.radarP1;
+    lookH.textContent = ACTIVE.meta.radarLookH;
+    lookList.innerHTML = ACTIVE.meta.radarLook.map(s => `<li>${s}</li>`).join("");
+  }
+
+  // Bidirectional hover: bullet ↔ matching radar label + legend item.
+  lookList.querySelectorAll("li[data-axis-index]").forEach(li => {
+    const ix = li.getAttribute("data-axis-index");
+    const setHL = (on) => {
+      const r = document.querySelector(`.radar-axis-label[data-axis-index="${ix}"]`);
+      if (r) r.classList.toggle("is-highlighted", on);
+      const legendLi = document.querySelector(`#radar-axis-legend-list li[data-axis-index="${ix}"]`);
+      if (legendLi) legendLi.classList.toggle("axis-li-highlighted", on);
+    };
+    li.addEventListener("mouseenter", () => setHL(true));
+    li.addEventListener("mouseleave", () => setHL(false));
+  });
 }
 
 // --- Axis-legend helpers ----------------------------------------------------
@@ -893,20 +1353,46 @@ function fullNameWithBoldShort(name, short) {
 function renderAxisLegend() {
   const heading = ACTIVE.meta.axisLegendH || (currentLang === "de" ? "Achsen" : "Axes");
   const hint = ACTIVE.meta.axisLegendHint ||
-    (currentLang === "de" ? "Labels im Chart anhovern für volle Beschreibung"
-                          : "hover labels on the chart for full description");
+    (currentLang === "de" ? "Labels im Chart antippen oder anhovern für Pole inline"
+                          : "tap or hover labels in the chart for inline poles");
   document.getElementById("radar-axis-legend-h").innerHTML =
     `${heading} <span style="font-weight:400;letter-spacing:0;text-transform:none;color:var(--ink-dim);font-size:11px;margin-left:8px;">— ${hint}</span>`;
+  const innerLabel = ACTIVE.meta.poleInnerLabel || (currentLang === "de" ? "Mitte" : "Centre");
+  const outerLabel = ACTIVE.meta.poleOuterLabel || (currentLang === "de" ? "Rand"  : "Rim");
   const list = document.getElementById("radar-axis-legend-list");
-  list.innerHTML = ACTIVE.axes.map(ax => {
+  list.innerHTML = ACTIVE.axes.map((ax, i) => {
     const tag = axisTagline(ax);
+    const lp = (ax.leftPole  && ax.leftPole.label)  || "";
+    const rp = (ax.rightPole && ax.rightPole.label) || "";
+    const poles = (lp || rp)
+      ? `<div class="axis-poles"><span class="pole-inner"><em>${innerLabel}</em>${lp}</span><span class="sep">·</span><span class="pole-outer"><em>${outerLabel}</em>${rp}</span></div>`
+      : "";
     const tipPlain = `${ax.name}${axisTaglinePlain(ax) ? " — " + axisTaglinePlain(ax) : ""}`;
-    return `<li title="${tipPlain.replace(/"/g, "&quot;")}">${fullNameWithBoldShort(ax.name, ax.short)} — <span class="axis-tagline">${tag}</span></li>`;
+    return `<li title="${tipPlain.replace(/"/g, "&quot;")}" data-axis-index="${i}">` +
+             `<a href="#axis-${ax.id}"><div>${fullNameWithBoldShort(ax.name, ax.short)} — <span class="axis-tagline">${tag}</span></div></a>` +
+             `${poles}` +
+           `</li>`;
   }).join("");
+  // Hover on a legend item highlights the corresponding label in the radar.
+  // The radar SVG is re-rendered on every renderAll, so look the label up
+  // per-event rather than caching a possibly-stale reference.
+  list.querySelectorAll("li[data-axis-index]").forEach(li => {
+    const idx = li.getAttribute("data-axis-index");
+    const setHL = (on) => {
+      const r = document.querySelector(`.radar-axis-label[data-axis-index="${idx}"]`);
+      if (r) r.classList.toggle("is-highlighted", on);
+    };
+    li.addEventListener("mouseenter", () => setHL(true));
+    li.addEventListener("mouseleave", () => setHL(false));
+    li.querySelector("a")?.addEventListener("focus", () => setHL(true));
+    li.querySelector("a")?.addEventListener("blur",  () => setHL(false));
+  });
 }
 
 // Custom tooltips for radar axis labels — sidesteps the native <title> hover delay.
 // Bound after every renderRadar() because renderRadar replaces the SVG's innerHTML.
+// Touch path runs in parallel to the mouse/focus path: a tap toggles the tooltip
+// sticky-open, a tap outside closes it. Desktop mouseenter/leave is unchanged.
 function bindChartTooltips() {
   const tip = document.getElementById("chart-tooltip");
   const wrap = document.querySelector(".radar-svg-wrap");
@@ -940,13 +1426,56 @@ function bindChartTooltips() {
   function hide() {
     tip.removeAttribute("data-on");
     tip.setAttribute("aria-hidden", "true");
+    tip.removeAttribute("data-touch-axis");
+  }
+  const hintEl = document.getElementById("radar-hint");
+  function dismissHintOnce() {
+    if (!hintEl || hintEl.hasAttribute("data-dismissed") || hintEl.hasAttribute("data-fade")) return;
+    hintEl.setAttribute("data-fade", "1");
+    setTimeout(() => { hintEl.setAttribute("data-dismissed", "1"); }, 260);
+    try { localStorage.setItem("dm.radarHintDismissed", "1"); } catch (e) {}
+  }
+  // Reverse direction of the legend → label highlight already wired in
+  // renderAxisLegend: hovering a radar label also lights up the matching
+  // legend entry below the chart, plus the matching per-axis bullet on the
+  // right (when a domain explanation is active).
+  function setRelatedHL(el, on) {
+    const idx = el.getAttribute("data-axis-index");
+    const legendLi = document.querySelector(`#radar-axis-legend-list li[data-axis-index="${idx}"]`);
+    if (legendLi) legendLi.classList.toggle("axis-li-highlighted", on);
+    const bullet = document.querySelector(`#radar-look-list li[data-axis-index="${idx}"]`);
+    if (bullet) bullet.classList.toggle("axis-li-highlighted", on);
   }
   document.querySelectorAll(".radar-axis-label").forEach(el => {
-    el.addEventListener("mouseenter", () => show(el));
-    el.addEventListener("mouseleave", hide);
-    el.addEventListener("focus", () => show(el));
-    el.addEventListener("blur", hide);
+    el.addEventListener("mouseenter", () => { show(el); dismissHintOnce(); setRelatedHL(el, true); });
+    el.addEventListener("mouseleave", () => { if (!tip.hasAttribute("data-touch-axis")) hide(); setRelatedHL(el, false); });
+    el.addEventListener("focus", () => { show(el); dismissHintOnce(); setRelatedHL(el, true); });
+    el.addEventListener("blur",  () => { if (!tip.hasAttribute("data-touch-axis")) hide(); setRelatedHL(el, false); });
+    el.addEventListener("pointerdown", (e) => {
+      if (!e.pointerType || e.pointerType === "mouse") return;  // desktop handled by mouseenter
+      e.preventDefault();
+      const idx = el.getAttribute("data-axis-index");
+      if (tip.getAttribute("data-touch-axis") === idx) { hide(); setRelatedHL(el, false); return; }
+      show(el);
+      setRelatedHL(el, true);
+      tip.setAttribute("data-touch-axis", idx);
+    });
   });
+  // Outside-tap dismiss (touch only). Registered once across rebinds.
+  if (!bindChartTooltips._docBound) {
+    bindChartTooltips._docBound = true;
+    document.addEventListener("pointerdown", (e) => {
+      if (!e.pointerType || e.pointerType === "mouse") return;
+      const t = document.getElementById("chart-tooltip");
+      if (!t || !t.hasAttribute("data-touch-axis")) return;
+      if (e.target && e.target.closest && e.target.closest(".radar-axis-label")) return;
+      t.removeAttribute("data-on");
+      t.setAttribute("aria-hidden", "true");
+      t.removeAttribute("data-touch-axis");
+      // Clear any sticky-tap highlights from legend + bullets too.
+      document.querySelectorAll(".axis-li-highlighted").forEach(li => li.classList.remove("axis-li-highlighted"));
+    });
+  }
 }
 
 function renderLegend() {
@@ -998,6 +1527,7 @@ function renderAxes() {
     const canonAxis = DATA.axes[ai];
     const el = document.createElement("div");
     el.className = "axis"; el.dataset.id = canonAxis.id;
+    el.id = `axis-${canonAxis.id}`;
 
     const ordered = ACTIVE.models
       .map((m, i) => ({ ...m, key: DATA.models[i].key, isTarget: DATA.models[i].isTarget,
@@ -1151,17 +1681,111 @@ function renderCovar() {
   root.innerHTML = html;
 }
 
+// Render the sources section at the bottom of the page. Sources are grouped
+// twice — once by axis they informed, once by instance — so a reader who's
+// skeptical about a specific claim can jump directly to the relevant citation.
+// Same source may appear under multiple groups; that's intentional (each
+// occurrence anchors the citation to a specific use site).
+//
+// Sources without `uses` (or with `uses.general: true`) appear under a
+// "General references" group. If DATA.sources is empty/missing, the entire
+// section is hidden.
+function renderSources() {
+  const root = document.getElementById("sources");
+  if (!root) return;
+  const sources = (ACTIVE.sources && ACTIVE.sources.length) ? ACTIVE.sources : [];
+  if (!sources.length) {
+    root.setAttribute("hidden", "hidden");
+    root.innerHTML = "";
+    return;
+  }
+  root.removeAttribute("hidden");
+
+  const heading = (ACTIVE.meta && ACTIVE.meta.sourcesH) ||
+    (currentLang === "de" ? "Quellen" : "Sources");
+  const intro = (ACTIVE.meta && ACTIVE.meta.sourcesIntro) || (currentLang === "de"
+    ? "Belege gruppiert nach den Achsen und Beispielen, für die sie verwendet wurden. Dieselbe Quelle erscheint unter jeder Stelle, an der sie eine Aussage trägt — kein Sammelverzeichnis am Ende, sondern eine Brücke zum jeweiligen Argument."
+    : "References grouped by the axes and instances they informed. The same source appears under each place it supports — not a bibliography dump, but a bridge back to the argument in the map.");
+  const axesH    = (ACTIVE.meta && ACTIVE.meta.sourcesAxesH)    || (currentLang === "de" ? "Nach Achse"      : "By axis");
+  const modelsH  = (ACTIVE.meta && ACTIVE.meta.sourcesModelsH)  || (currentLang === "de" ? "Nach Beispiel"   : "By instance");
+  const generalH = (ACTIVE.meta && ACTIVE.meta.sourcesGeneralH) || (currentLang === "de" ? "Allgemein"       : "General references");
+  const axisKind = (ACTIVE.meta && ACTIVE.meta.sourcesAxisKind) || (currentLang === "de" ? "Achse"           : "Axis");
+  const modelKind= (ACTIVE.meta && ACTIVE.meta.sourcesModelKind)|| (currentLang === "de" ? "Beispiel"        : "Instance");
+
+  function srcLi(s) {
+    const titleInner = s.url
+      ? `<a href="${s.url}" target="_blank" rel="noopener">${s.title}</a>`
+      : s.title;
+    const note = s.note ? `<span class="src-note">— ${s.note}</span>` : "";
+    return `<li><span class="src-title">${titleInner}</span> ${note}</li>`;
+  }
+
+  // Group 1: by axis. Order follows ACTIVE.axes so the layout mirrors the chart.
+  let axisGroupsHtml = "";
+  for (const ax of ACTIVE.axes) {
+    const hits = sources.filter(s => s.uses && s.uses.axes && s.uses.axes.includes(ax.id));
+    if (!hits.length) continue;
+    axisGroupsHtml += `
+      <div class="src-group" data-axis-id="${ax.id}">
+        <div class="group-label">
+          <span class="group-dot"></span>${ax.name}<span class="group-kind">${axisKind}</span>
+        </div>
+        <ul class="src-list">${hits.map(srcLi).join("")}</ul>
+      </div>`;
+  }
+
+  // Group 2: by instance. Order follows ACTIVE.models.
+  let modelGroupsHtml = "";
+  for (let i = 0; i < ACTIVE.models.length; i++) {
+    const m = ACTIVE.models[i];
+    const canon = DATA.models[i];
+    const hits = sources.filter(s => s.uses && s.uses.models && s.uses.models.includes(canon.key));
+    if (!hits.length) continue;
+    modelGroupsHtml += `
+      <div class="src-group" data-key="${canon.key}">
+        <div class="group-label">
+          <span class="group-dot" style="background:${canon.color}"></span>${m.full || m.name}<span class="group-kind">${modelKind}</span>
+        </div>
+        <ul class="src-list">${hits.map(srcLi).join("")}</ul>
+      </div>`;
+  }
+
+  // Group 3: general references — no `uses`, or `uses.general === true`.
+  const generals = sources.filter(s => !s.uses || s.uses.general === true ||
+    (!(s.uses.axes && s.uses.axes.length) && !(s.uses.models && s.uses.models.length)));
+  let generalHtml = "";
+  if (generals.length) {
+    generalHtml = `
+      <div class="src-section">
+        <h3>${generalH}</h3>
+        <div class="src-group">
+          <ul class="src-list">${generals.map(srcLi).join("")}</ul>
+        </div>
+      </div>`;
+  }
+
+  root.innerHTML = `
+    <h2>${heading}</h2>
+    ${intro ? `<p class="sources-intro">${intro}</p>` : ""}
+    ${axisGroupsHtml ? `<div class="src-section"><h3>${axesH}</h3>${axisGroupsHtml}</div>` : ""}
+    ${modelGroupsHtml ? `<div class="src-section"><h3>${modelsH}</h3>${modelGroupsHtml}</div>` : ""}
+    ${generalHtml}
+  `;
+}
+
 // ---- Wiring ---------------------------------------------------------------
 
 function renderAll() {
   ACTIVE = buildActive(currentLang);
   renderHeaderAndMeta();
   renderLegend();
+  renderExplainBar();
   renderAxes();
   renderRadar();
   bindChartTooltips();  // re-bind after each renderRadar (SVG innerHTML was replaced)
   renderAxisLegend();
   renderCovar();
+  renderSources();
   syncLangPills();
   bindPills();  // pills are re-rendered each time, so we re-bind
 }
@@ -1191,10 +1815,20 @@ function bindPills() {
     const m = DATA.models.find(x => x.key === key);
     if (!m || m.isTarget) return;
     pill.addEventListener("click", () => {
+      let turnedOn = false;
       if (visible.has(key)) { visible.delete(key); pill.classList.remove("on"); }
-      else                  { visible.add(key);    pill.classList.add("on"); }
+      else                  { visible.add(key);    pill.classList.add("on"); turnedOn = true; }
       refreshMarkers();
       refreshRadar();
+      // Last-toggled-ON pill auto-selects its explanation (most-recent wins).
+      // Turning a pill OFF does not change the active explanation — the user
+      // may keep reading it, and can switch manually via the explain-bar.
+      // No-op if DATA has no perDomain block for this model.
+      if (turnedOn && ACTIVE.perDomain && ACTIVE.perDomain[key]) {
+        activeExplain = key;
+        renderExplainBar();
+        renderRadarBlurb();
+      }
     });
   });
 }

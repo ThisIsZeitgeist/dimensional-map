@@ -74,6 +74,10 @@ Each entry: `{ a, b, mechanism, example, strength }`. Mechanism is the load-bear
 Two artifacts:
 1. **Structured analysis** (markdown) — axes table, exemplars, endpoint dossiers, co-variations, confidence summary, list of axes considered-and-dropped (so the user sees what you cut)
 2. **HTML visualization** (on user request, or when they explicitly want to see the map) — clone `templates/map.html.tmpl` to a new path, then edit only the `DATA = { ... }` block at the top with the mapped data. The template's JS does the rest. Save next to the source file if there is one (e.g. next to a paper, project doc), otherwise in `~/dimensional-maps/<slug>.html`.
+3. **Per-instance explanations** (optional but encouraged for field maps with 5+ instances) — populate `DATA.perDomain[<key>] = { intro, axes }` so the user can read why each instance sits where it does, axis by axis. Same length-budget as the default "Domain silhouettes" block; one bullet per chart axis, parallel to the `axes` array.
+4. **Sources** (optional but encouraged whenever the map cites specific evidence) — populate `DATA.sources[]` with each load-bearing reference, tagged with which axes / instances it informs. Renders as a grouped citation list at the bottom of the page (by axis, then by instance), so readers can drill from claim → source directly.
+
+If you're producing a non-English variant of the map (e.g., `de: { ... }`), run the **colloquiality check** in the Bilingual mode section *before* writing the first non-English sentence. The check applies to every translatable field, including the per-instance explanations and source notes.
 
 ### Step 8 — Honest reporting
 - Total axes considered vs. kept (e.g., "13 considered, 9 kept, 4 dropped: <reasons>")
@@ -163,9 +167,62 @@ The HTML template consumes this exact shape. Produce it as the deliverable from 
       "example": "Espresso (9 bar, talcum-fine) vs. French press (atmospheric, sea-salt-coarse).",
       "strength": "tight"
     }
+  ],
+  "perDomain": {
+    "espresso": {
+      "intro": "Short paragraph: what defines this instance's silhouette in one or two sentences.",
+      "axes": [
+        "One sentence per axis (parallel to the `axes` array, same order). Each sentence explains why this instance sits at the position given on that axis — the mechanism, not just the value.",
+        "...",
+        "..."
+      ]
+    }
+  },
+  "sources": [
+    {
+      "id": "stable-identifier",
+      "title": "Author / publication / paper title (year)",
+      "url": "https://example.com",
+      "note": "Optional one-line context — what this source actually establishes",
+      "uses": {
+        "axes":   ["axisId1", "axisId2"],
+        "models": ["modelKey1"]
+      }
+    }
   ]
 }
 ```
+
+### `perDomain` (optional, enables the per-axis explanation feature)
+
+When present, the renderer adds a button bar at the top of the radar panel — one button per instance that has a `perDomain` entry. Clicking a button swaps the right-side "Domain silhouettes" copy for an intro paragraph plus N axis bullets (one per chart axis, in the same order as the `axes` array). Each bullet auto-prefixes the axis `short` label and the instance's position with confidence mark, so the explanation is anchored to the chart.
+
+Toggling a COMPARE pill ON also auto-selects that instance's explanation (last-toggled-on wins). Toggling OFF leaves the active explanation in place. Clicking the active button deselects it and returns to the default copy.
+
+If `perDomain` is omitted entirely, the bar is hidden and the radar panel behaves exactly as before. If it's present but only covers some instances, only those instances get buttons.
+
+Length budget for a `perDomain` entry: aim for roughly the same volume as the default "Domain silhouettes" block — short intro plus one-sentence bullets per axis. The text column grows as needed if you need a bit more.
+
+### `sources` (optional, end-of-page citation list)
+
+When present, a "Sources" section renders at the bottom of the page, **grouped twice** — once by axis they informed, once by instance — so a reader who's skeptical about a specific claim can drill straight to the citation. The same source appears under each group it's tagged for; that duplication is intentional (each occurrence anchors the citation to its use site rather than to a generic bibliography).
+
+Each `sources[]` entry:
+- `id` — stable identifier (used for DE overrides + as a future deep-link target)
+- `title` — citation text; whatever a reader needs to find or recognize the source
+- `url` (optional) — opens in a new tab
+- `note` (optional) — one line of context: what this source actually establishes
+- `uses` — `{ axes: ["axisId", ...], models: ["modelKey", ...] }`; either or both, both optional. A source with no `uses` (or `uses.general: true`) lands in a "General references" group at the bottom.
+
+Group order follows the canonical `axes` / `models` order, so the source list mirrors the chart layout. Empty groups are skipped. If `DATA.sources` is missing or empty, the whole section is hidden.
+
+**Bilingual:** `de.sources` can override partial fields per `id` — typically you'll translate just `note` (and maybe `title` if the source itself has a localized title) while keeping `url` and `uses` from canonical. The merger matches by `id`; sources missing from the override fall back to canonical.
+
+**Authoring guidance:**
+- Cite the *load-bearing* claims, not every adjacent statement. A short list (5-12 entries) is more useful than a complete bibliography.
+- Prefer primary sources (court rulings, regulations, papers) over secondary commentary, but secondary is fine when it consolidates several primary sources.
+- The `note` should explain what the source *establishes*, not what the source *is*. "Sanctions on lawyers for filing AI-hallucinated cases" beats "court ruling, 2023".
+- Tag `uses.axes` and `uses.models` precisely — over-tagging dilutes the citation; under-tagging buries it. If a source informs the bundle at a specific pole, tag the axis. If it anchors a single instance's position, tag the model. If it does both, tag both.
 
 ## Radar axis legend (auto-rendered)
 
@@ -185,17 +242,43 @@ Constraints:
 
 ## Bilingual mode (optional)
 
-The template supports an optional second language. Add a `de: { ... }` block (or other ISO code) inside DATA with the same shape as the top-level — `meta`, `models`, `axes`, `covariations`. The renderer merges per-field, so partial translations work (missing keys fall back to canonical). Position values, density peaks, confidence marks, model keys/colours stay canonical (top-level only) — only translatable strings go in the override.
+The template supports an optional second language. Add a `de: { ... }` block (or other ISO code) inside DATA with the same shape as the top-level — `meta`, `models`, `axes`, `covariations`, `perDomain`. The renderer merges per-field, so partial translations work (missing keys fall back to canonical). Position values, density peaks, confidence marks, model keys/colours stay canonical (top-level only) — only translatable strings go in the override.
 
 A language toggle (EN/DE pills, top-right) is rendered automatically when `DATA.de` is present. It writes a `dt_lang_pref` cookie and re-renders without reload. Initial language is picked from the cookie, then `navigator.languages` (German wins if `de*` is preferred), else the canonical default.
 
 When generating a map for a German-speaking user, default to populating `DATA.de` alongside the canonical block — same shape, fully translated, no IP/proper-noun changes (model keys, colours, IDs identical).
+
+### Colloquiality check (mandatory before writing any non-English variant)
+
+**Before** writing the `de: { ... }` block — or any other non-English variant — run a colloquiality check on every load-bearing technical term. The goal is text that a native expert would write, not text that's grammatically perfect but reads as a textbook translation.
+
+For each domain term in the EN source ask, in order:
+
+1. **Is there an established native term in this field?** Use it. (DE: "Halbwertszeit" for half-life, "Stand der Technik" for state-of-the-art, "Modalität" for modality.)
+2. **Do native experts use the English loanword?** Keep the loanword. (DE: "Ground Truth", "Deployment", "Pipeline", "Token", "RAG", "Blast Radius", "Prompt Injection", "Stack" — these are what natives actually say; calques like "Bodenwahrheit", "Eingabeaufforderungs-Einschleusung" mark the text as machine-translated even when grammatically correct.)
+3. **Is the literal compound noun something a native would utter?** If you're constructing a noun like `<Concept>-<Concept>` by gluing roots, sanity-check by saying it out loud. If it feels like a coined word from a translation exam, rewrite around it.
+
+Red flags that should trigger a rewrite:
+- A compound noun that's a 1:1 calque of an English technical compound and yields a word with zero hits on Google ("Bodenwahrheit", "Eingabeaufforderungs-Injektion").
+- A loanword verb used so often it dominates a paragraph ("gatet", "gegatet" repeated as cargo) — paraphrase to native verbs ("blockiert", "begrenzt", "kontrolliert").
+- Grammatical-gender errors on loanwords used as articles ("im Map" vs. "auf der Map" / "auf der Karte" — "Map" is feminine in DE tech usage).
+- Mixing loanword and native form for the same concept within one document — pick one and stick with it.
+
+When in doubt, prefer:
+- The English loanword if it's commonly used in the field's German-speaking community.
+- A native paraphrase if the loanword isn't established and the calque sounds artificial.
+- **Avoid** coining a new German compound just to translate an English compound — that's the path to "Bodenwahrheit".
+
+See `references/colloquiality-check.md` for a worked example + a starter list of go-to native-vs-loanword choices in German AI/ML/tech contexts.
+
+This check applies to every translatable field: `meta.*`, axis `name`, axis `blurb`, axis `tagline`, pole `label`, `bundle`, `why`, `foot`, co-variation `mechanism` + `example`, and `perDomain[*].intro` + `axes[*]`. The chart's `short` label is especially load-bearing — it's what appears on the radar — so don't burn it on an obvious calque.
 
 ## References
 - `references/finding-axes.md` — heuristics for spotting informative axes
 - `references/quality-gates.md` — the three gates with examples of failed axes
 - `references/endpoint-elaboration.md` — how to write endpoint dossiers (the bundle, exemplar, why)
 - `references/covariation-prompts.md` — patterns for surfacing couplings with mechanism
+- `references/colloquiality-check.md` — colloquiality audit for non-English variants (DE-focused, generalizes)
 - `templates/map.html.tmpl` — self-contained HTML renderer (just edit the `DATA = {…}` block)
 
 ## Companion skill: parameter-playground
